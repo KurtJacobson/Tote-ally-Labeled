@@ -1,0 +1,35 @@
+<Project>
+  <!--
+    Version is derived from git at build time, the same way Vordr does it:
+      Version / FileVersion  = 0.1.0.<commit-count>   (monotonic, always four numbers)
+      InformationalVersion   = the release version from build\release-version.ps1, passed in as
+                               -p:ReleaseVersion by build\make-installer.ps1, then +<git describe>.
+                               A plain `dotnet build` falls back to 0.1.0.<commit-count>.
+    This is the version shown in Settings. Works outside a git checkout (0.1.0.0+nogit).
+  -->
+  <PropertyGroup>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <!-- We put the git describe in InformationalVersion ourselves; don't let the SDK append the raw SHA too. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <Target Name="SetGitVersion"
+          BeforeTargets="GetAssemblyVersion;CoreGenerateAssemblyInfo;CoreCompile"
+          Condition="'$(_GitVersionSet)' != 'true'">
+    <Exec Command="git rev-list --count HEAD" ConsoleToMSBuild="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCount" />
+    </Exec>
+    <Exec Command="git describe --tags --always --dirty" ConsoleToMSBuild="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitDescribe" />
+    </Exec>
+    <PropertyGroup>
+      <_GitCount Condition="'$(_GitCount)' == ''">0</_GitCount>
+      <_GitDescribe Condition="'$(_GitDescribe)' == ''">nogit</_GitDescribe>
+      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">0.1.0.$(_GitCount)</ReleaseVersion>
+      <Version>0.1.0.$(_GitCount)</Version>
+      <FileVersion>0.1.0.$(_GitCount)</FileVersion>
+      <InformationalVersion>$(ReleaseVersion)+$(_GitDescribe)</InformationalVersion>
+      <_GitVersionSet>true</_GitVersionSet>
+    </PropertyGroup>
+  </Target>
+</Project>

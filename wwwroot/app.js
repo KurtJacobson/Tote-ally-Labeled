@@ -352,6 +352,7 @@ async function init() {
     selectLayout(rememberedSize());
     loadLogo();
     checkPrinter();
+    api("/api/version").then(info => { $("app-version").textContent = `Version ${info.version}`; }).catch(() => { });
 
     // Re-measure once the web font arrives, since it changes how text wraps.
     document.fonts.ready.then(updatePreview);

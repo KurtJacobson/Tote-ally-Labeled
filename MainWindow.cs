@@ -17,6 +17,7 @@ public class MainWindow : Form
         browserDataFolder = Path.Combine(dataFolder, "WebView2");
 
         Text = "Tote Labels";
+        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);  // tote.ico, built into the exe
         ClientSize = new Size(1100, 760);
         MinimumSize = new Size(480, 480);
         StartPosition = FormStartPosition.CenterScreen;

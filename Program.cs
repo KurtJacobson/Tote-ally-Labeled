@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Net.Sockets;
+using System.Reflection;
 using ToteLabels;
 
 const int Port = 5050;
@@ -29,6 +30,13 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.MapGet("/api/layouts", () => LabelLayouts.All);
+
+// The release version from Directory.Build.props, without the +<git describe> build detail.
+app.MapGet("/api/version", () => new
+{
+    Version = typeof(AppData).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+        .InformationalVersion.Split('+')[0] ?? "unknown"
+});
 
 app.MapGet("/api/settings", () => data.LoadSettings());
 

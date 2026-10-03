@@ -1,0 +1,87 @@
+name: Build & release
+
+# Builds the Windows installer on every push and pull request, so a change that breaks the build or the
+# installer is caught straight away. A tag (v0.1.0, v0.2.0-dev.1) also publishes it as a GitHub release;
+# a tag with a '-' in it is marked as a pre-release.
+#
+#   git tag v0.1.0
+#   git push origin v0.1.0
+#
+# The installer is not Authenticode-signed, so Windows SmartScreen warns on first run
+# ("More info" > "Run anyway").
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write        # create the GitHub release on a tag
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The version comes from git history (tags and commit count); a shallow clone gives 0.1.0.1.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/*.csproj') }}
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      # Decided once, before the build, and handed to it, so the installer's name, the version Setup
+      # records and the version shown in Settings all agree.
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: ./build/release-version.ps1
+
+      - name: Build installer
+        shell: pwsh
+        env:
+          TOTELABELS_VERSION: ${{ steps.ver.outputs.version }}
+        run: ./build/make-installer.ps1
+
+      # The installer must carry exactly the resolved version.
+      - name: Locate installer
+        id: exe
+        shell: pwsh
+        run: |
+          $version = '${{ steps.ver.outputs.version }}'
+          $exe = Get-Item "installer/Output/ToteLabelsSetup-$version.exe" -ErrorAction SilentlyContinue
+          if (-not $exe) {
+            $found = (Get-ChildItem installer/Output/ToteLabelsSetup-*.exe | ForEach-Object Name) -join ', '
+            throw "expected installer/Output/ToteLabelsSetup-$version.exe, found: $found"
+          }
+          "path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+          "installer $($exe.Name), $([math]::Round($exe.Length / 1MB, 1)) MB"
+
+      # Builds that are not releases keep the installer for a week, to try a change before tagging it.
+      - name: Keep the installer
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToteLabelsSetup-${{ steps.ver.outputs.version }}
+          path: ${{ steps.exe.outputs.path }}
+          retention-days: 7
+
+      - name: Publish the GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.exe.outputs.path }}
+          generate_release_notes: true
+          prerelease: ${{ steps.ver.outputs.prerelease }}
