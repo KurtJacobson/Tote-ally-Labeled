@@ -44,8 +44,6 @@ public static class LabelLayouts
     public const double MaxPrintWidthInches = 4.09;  // the ZD621's print head
     public const double MinInches = 0.75;
     public const double MaxLengthInches = 12;
-    const double LogoMinHeightInches = 1.75;         // shorter labels have no room for a logo
-    const double LogoMinDiameterInches = 2.5;
 
     public static readonly LabelSize[] Defaults =
     [
@@ -96,18 +94,33 @@ public static class LabelLayouts
         int margin = R(8 + Math.Min(w, h) * 0.027);
         int y = margin;
 
+        var fonts = Fonts(Math.Min(w * 0.15, h * (size.TitleLines == 1 ? 0.28 : 0.135)));
+        int titleHeight = size.TitleLines * fonts.Title;
+
+        // The logo goes across the top when it would be at least as tall as the title text,
+        // which suits tall labels; on shorter ones it goes beside the title instead.
+        int logoOnTopHeight = R(Math.Min(h * 0.14, 180));
+        bool logoOnTop = size.ShowLogo && logoOnTopHeight >= fonts.Title;
         Box? logo = null;
-        if (size.ShowLogo && size.HeightInches >= LogoMinHeightInches)
+        if (logoOnTop)
         {
-            int logoHeight = R(Math.Min(h * 0.14, 180));
-            int logoWidth = Math.Min(w - 2 * margin, R(logoHeight * 3.75));
-            logo = new Box((w - logoWidth) / 2, y, logoWidth, logoHeight);
-            y += logoHeight + margin;
+            int logoWidth = Math.Min(w - 2 * margin, R(logoOnTopHeight * 3.75));
+            logo = new Box((w - logoWidth) / 2, y, logoWidth, logoOnTopHeight);
+            y += logoOnTopHeight + margin;
+        }
+        int titleX = margin, titleWidth = w - 2 * margin;
+
+        // Otherwise the logo sits beside the title, as tall as the title, and the title moves over.
+        if (size.ShowLogo && !logoOnTop)
+        {
+            int logoWidth = Math.Min(R(titleHeight * 2.5), R(w * 0.3));
+            logo = new Box(margin, y, logoWidth, titleHeight);
+            titleX += logoWidth + margin;
+            titleWidth -= logoWidth + margin;
         }
 
-        var fonts = Fonts(Math.Min(w * 0.15, h * (size.TitleLines == 1 ? 0.28 : 0.135)));
-        var title = new TextBlock(margin, y, w - 2 * margin, fonts.Title, size.TitleLines, 0, "C");
-        y += size.TitleLines * fonts.Title;
+        var title = new TextBlock(titleX, y, titleWidth, fonts.Title, size.TitleLines, 0, "C");
+        y += titleHeight;
 
         int thickness = Math.Max(3, R(Math.Min(w, h) / 200.0));
         int dividerY = y + R(margin * 0.6);
@@ -141,44 +154,57 @@ public static class LabelLayouts
             return far >= radius ? -1 : Math.Sqrt(radius * radius - far * far);
         }
 
-        bool withLogo = size.ShowLogo && size.WidthInches >= LogoMinDiameterInches;
-        int logoHeight = withLogo ? R(d * 0.12) : 0;
-
-        for (int lines = 12; lines >= 0; lines--)
+        // Every stack that fits, from the most content lines down; null when none does.
+        LabelLayout? Stack(bool withLogo)
         {
-            int contentsHeight = lines * (fonts.Contents + fonts.Gap);
-            int height = (withLogo ? logoHeight + margin : 0) + size.TitleLines * fonts.Title
-                         + (lines > 0 ? dividerGap + thickness + margin + contentsHeight : 0);
-            double y = centre - height / 2.0;
+            int logoHeight = withLogo ? R(d * (size.WidthInches >= 2.5 ? 0.12 : 0.15)) : 0;
 
-            Box? logo = null;
-            if (withLogo)
+            for (int lines = 12; lines >= 0; lines--)
             {
-                double half = HalfWidth(y, y + logoHeight);
-                if (half < d * 0.15) continue;
-                int logoWidth = Math.Min(R(2 * half), R(logoHeight * 3.75));
-                logo = new Box(R(centre - logoWidth / 2.0), R(y), logoWidth, logoHeight);
-                y += logoHeight + margin;
+                int contentsHeight = lines * (fonts.Contents + fonts.Gap);
+                int height = (withLogo ? logoHeight + margin : 0) + size.TitleLines * fonts.Title
+                             + (lines > 0 ? dividerGap + thickness + margin + contentsHeight : 0);
+                double y = centre - height / 2.0;
+
+                Box? logo = null;
+                if (withLogo)
+                {
+                    double half = HalfWidth(y, y + logoHeight);
+                    if (half < d * 0.15) continue;
+                    int logoWidth = Math.Min(R(2 * half), R(logoHeight * 3.75));
+                    logo = new Box(R(centre - logoWidth / 2.0), R(y), logoWidth, logoHeight);
+                    y += logoHeight + margin;
+                }
+
+                double titleHalf = HalfWidth(y, y + size.TitleLines * fonts.Title);
+                if (titleHalf < d * 0.3) continue;  // the title keeps at least 60% of the diameter
+                var title = new TextBlock(R(centre - titleHalf), R(y), R(2 * titleHalf), fonts.Title, size.TitleLines, 0, "C");
+                y += size.TitleLines * fonts.Title;
+
+                if (lines == 0)
+                    return new LabelLayout(size, DisplayName(size), logo, title, null, null);
+
+                double dividerY = y + dividerGap;
+                double contentsY = dividerY + thickness + margin;
+                double ruleHalf = HalfWidth(dividerY, dividerY + thickness);
+                double contentsHalf = HalfWidth(contentsY, contentsY + contentsHeight);
+                if (contentsHalf < d * 0.275) continue;  // and the contents 55%: fewer, wider lines beat more narrow ones
+
+                return new LabelLayout(size, DisplayName(size), logo, title,
+                    new Rule(R(centre - ruleHalf), R(dividerY), R(2 * ruleHalf), thickness),
+                    new TextBlock(R(centre - contentsHalf), R(contentsY), R(2 * contentsHalf), fonts.Contents, lines, fonts.Gap, size.ContentsAlign));
             }
-
-            double titleHalf = HalfWidth(y, y + size.TitleLines * fonts.Title);
-            if (titleHalf < d * 0.3) continue;  // the title keeps at least 60% of the diameter
-            var title = new TextBlock(R(centre - titleHalf), R(y), R(2 * titleHalf), fonts.Title, size.TitleLines, 0, "C");
-            y += size.TitleLines * fonts.Title;
-
-            if (lines == 0)
-                return new LabelLayout(size, DisplayName(size), logo, title, null, null);
-
-            double dividerY = y + dividerGap;
-            double contentsY = dividerY + thickness + margin;
-            double ruleHalf = HalfWidth(dividerY, dividerY + thickness);
-            double contentsHalf = HalfWidth(contentsY, contentsY + contentsHeight);
-            if (contentsHalf < d * 0.275) continue;  // and the contents 55%: fewer, wider lines beat more narrow ones
-
-            return new LabelLayout(size, DisplayName(size), logo, title,
-                new Rule(R(centre - ruleHalf), R(dividerY), R(2 * ruleHalf), thickness),
-                new TextBlock(R(centre - contentsHalf), R(contentsY), R(2 * contentsHalf), fonts.Contents, lines, fonts.Gap, size.ContentsAlign));
+            return null;
         }
+
+        // With the logo if it fits and still leaves room for contents; otherwise without it,
+        // rather than losing the contents to make room.
+        var withLogo = size.ShowLogo ? Stack(true) : null;
+        var withoutLogo = Stack(false);
+        if (withLogo is not null && (withLogo.Contents is not null || withoutLogo?.Contents is null))
+            return withLogo;
+        if (withoutLogo is not null)
+            return withoutLogo;
 
         // Too small for even the title to sit inside the circle comfortably: use the full width at the middle.
         var fallback = Fonts(d * 0.14);

@@ -356,11 +356,12 @@ async function previewSize() {
       (layout.contents ? `Up to ${layout.contents.maxLines} content lines` : "Room for a title only") +
       (layout.sideways ? ", printed sideways" : "");
 
-    const noLogo = size.showLogo && !layout.logo;
-    $("logo-hint").hidden = !noLogo;
-    $("logo-hint").textContent = !noLogo ? ""
-      : size.round ? "A round label needs to be at least 2.5 in (64 mm) across for the logo."
-      : "A label needs to be at least 1.75 in (45 mm) tall for the logo.";
+    const logoHint = !size.showLogo ? ""
+      : !state.hasLogo ? "No logo has been uploaded yet. Upload one in Settings."
+      : !layout.logo ? "There is no room for the logo inside this circle with the title and contents."
+      : "";
+    $("logo-hint").hidden = !logoHint;
+    $("logo-hint").textContent = logoHint;
   } catch (error) {
     if (request === editor.request) showSizeProblem(error.message);
   }
