@@ -29,7 +29,36 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache"
 });
 
-app.MapGet("/api/layouts", () => LabelLayouts.All);
+app.MapGet("/api/layouts", () => data.LoadSizes().Select(LabelLayouts.Build));
+
+// The layout a size would get, for the live preview while it is being edited. Nothing is saved.
+app.MapPost("/api/sizes/preview", (LabelSize size) =>
+    LabelLayouts.Problem(size) is { } problem
+        ? Results.Text(problem, statusCode: 400)
+        : Results.Ok(LabelLayouts.Build(size)));
+
+// Replaces the whole list of sizes. A size with no Id is new and gets one here.
+app.MapPut("/api/sizes", (LabelSize[] sizes) =>
+{
+    if (sizes.Length == 0)
+        return Results.Text("Keep at least one label size.", statusCode: 400);
+
+    sizes = sizes.Select(size => size with
+    {
+        Id = string.IsNullOrWhiteSpace(size.Id) ? Guid.NewGuid().ToString("N")[..8] : size.Id,
+        Name = size.Name?.Trim() ?? "",
+        HeightInches = size.Round ? size.WidthInches : size.HeightInches
+    }).ToArray();
+
+    foreach (var size in sizes)
+        if (LabelLayouts.Problem(size) is { } problem)
+            return Results.Text($"{LabelLayouts.DisplayName(size)}: {problem}", statusCode: 400);
+    if (sizes.Select(size => size.Id).Distinct().Count() != sizes.Length)
+        return Results.Text("Two sizes have the same id.", statusCode: 400);
+
+    data.SaveSizes(sizes);
+    return Results.Ok(sizes.Select(LabelLayouts.Build));
+});
 
 // The release version from Directory.Build.props, without the +<git describe> build detail.
 app.MapGet("/api/version", () => new
@@ -79,7 +108,7 @@ app.MapDelete("/api/logo", () =>
 
 app.MapPost("/api/print", async (PrintRequest request) =>
 {
-    var layout = LabelLayouts.Find(request.LayoutId);
+    var layout = data.LoadSizes().Where(size => size.Id == request.LayoutId).Select(LabelLayouts.Build).FirstOrDefault();
     if (layout is null)
         return Results.Text("Unknown label size.", statusCode: 400);
     if (string.IsNullOrWhiteSpace(request.Title))

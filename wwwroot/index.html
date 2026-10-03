@@ -25,6 +25,7 @@
       <fieldset class="field">
         <legend class="field-label">Label size</legend>
         <div id="sizes" class="segmented"></div>
+        <button type="button" id="edit-sizes" class="link-button">Add or change label sizes</button>
       </fieldset>
 
       <div class="field">
@@ -62,6 +63,93 @@
       <p id="size-caption" class="bench-caption"></p>
     </section>
   </main>
+
+  <dialog id="size-editor" class="wide" aria-labelledby="size-editor-title">
+    <div class="size-editor">
+      <div class="dialog-head">
+        <h2 id="size-editor-title">Label sizes</h2>
+        <button type="button" id="close-size-editor" class="button-quiet">Close</button>
+      </div>
+
+      <div class="size-editor-body">
+        <nav class="size-list" aria-label="Label sizes">
+          <ul id="size-list"></ul>
+          <button type="button" id="add-size" class="button-quiet">Add size</button>
+        </nav>
+
+        <form id="size-form" class="size-form" novalidate>
+          <div class="size-fields">
+            <div class="setting-row">
+              <p class="field-label" id="shape-label">Shape</p>
+              <div class="radio-row" role="radiogroup" aria-labelledby="shape-label">
+                <label><input type="radio" name="shape" value="rect"> Rectangle</label>
+                <label><input type="radio" name="shape" value="round"> Round</label>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <p class="field-label" id="dimensions-label">Size</p>
+              <div class="dimensions">
+                <label class="dimension">
+                  <span id="width-label">Width</span>
+                  <input id="size-width" type="number" min="0" step="any" inputmode="decimal" aria-describedby="dimensions-label">
+                </label>
+                <span class="times" id="size-times" aria-hidden="true">×</span>
+                <label class="dimension" id="height-field">
+                  <span>Height</span>
+                  <input id="size-height" type="number" min="0" step="any" inputmode="decimal">
+                </label>
+                <div class="radio-row unit-row" role="radiogroup" aria-label="Units">
+                  <label><input type="radio" name="unit" value="in"> in</label>
+                  <label><input type="radio" name="unit" value="mm"> mm</label>
+                </div>
+              </div>
+              <p class="hint" id="size-hint"></p>
+            </div>
+
+            <div class="setting-row">
+              <label class="field-label" for="size-name">Name</label>
+              <input id="size-name" maxlength="40" autocomplete="off">
+            </div>
+
+            <div class="setting-row">
+              <p class="field-label">Layout</p>
+              <label class="check"><input type="checkbox" id="size-logo"> Print the logo</label>
+              <p class="hint" id="logo-hint" hidden></p>
+              <div class="option-grid">
+                <span id="title-lines-label">Title lines</span>
+                <div class="radio-row" role="radiogroup" aria-labelledby="title-lines-label">
+                  <label><input type="radio" name="title-lines" value="1"> 1</label>
+                  <label><input type="radio" name="title-lines" value="2"> 2</label>
+                </div>
+                <span id="align-label">Contents</span>
+                <div class="radio-row" role="radiogroup" aria-labelledby="align-label">
+                  <label><input type="radio" name="align" value="L"> Left</label>
+                  <label><input type="radio" name="align" value="C"> Centred</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="size-preview">
+            <div id="size-label" class="label">
+              <img id="size-preview-logo" class="label-logo" alt="" hidden>
+              <div id="size-preview-title" class="label-text empty"></div>
+              <div id="size-preview-divider" class="label-rule"></div>
+              <div id="size-preview-contents" class="label-text empty"></div>
+            </div>
+            <p id="size-preview-caption" class="bench-caption"></p>
+          </div>
+
+          <div class="size-actions">
+            <button type="button" id="remove-size" class="button-quiet button-danger">Remove size</button>
+            <p id="size-status" class="status" role="status"></p>
+            <button type="submit" id="save-size" class="button-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="settings" aria-labelledby="settings-title">
     <form id="settings-form">

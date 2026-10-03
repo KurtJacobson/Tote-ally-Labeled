@@ -153,6 +153,9 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 
 .button-quiet:hover { background: var(--field); }
+.button-quiet:disabled { opacity: 0.5; cursor: default; }
+
+.button-danger { color: var(--danger); }
 
 .file-button:focus-within {
   outline: 2px solid var(--focus);
@@ -196,7 +199,7 @@ button, input, textarea { font: inherit; color: inherit; }
   font-size: 0.875rem;
 }
 
-input:not([type="radio"]), textarea {
+input:not([type="radio"]):not([type="checkbox"]), textarea {
   width: 100%;
   padding: 10px 12px;
   background: var(--field);
@@ -219,8 +222,7 @@ textarea {
 
 .segmented {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 4px;
   padding: 4px;
   background: var(--field);
@@ -228,7 +230,7 @@ textarea {
   border-radius: 8px;
 }
 
-.segment span {
+.segment > span {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -249,12 +251,28 @@ textarea {
   outline-offset: 1px;
 }
 
-/* Outline of the label's shape, so the two sizes read at a glance. */
-.segment .shape {
+/* Outline of the label's shape, so the sizes read at a glance. */
+.shape {
+  flex: none;
   height: 18px;
+  max-width: 30px;
   border: 1.5px solid currentColor;
   border-radius: 2px;
   opacity: 0.7;
+}
+
+.shape.round { border-radius: 50%; }
+
+.link-button {
+  margin-top: 8px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--focus);
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .print-row {
@@ -320,6 +338,10 @@ textarea {
 }
 
 .label-text.empty { color: #a3a8ad; }
+
+.label.round { border-radius: 50%; }
+
+.label.invalid { opacity: 0.35; }
 
 .label-rule {
   position: absolute;
@@ -438,6 +460,144 @@ dialog::backdrop { background: rgba(15, 17, 19, 0.55); }
   max-height: 72px;
 }
 
+/* Label size editor: the sizes down the left, the selected one's settings and preview on the right */
+
+dialog.wide { width: min(940px, calc(100vw - 32px)); }
+
+.size-editor {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 34px);
+}
+
+.size-editor-body {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  min-height: 0;
+  flex: 1;
+}
+
+.size-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.size-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.size-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.size-item:hover { background: var(--field); }
+
+.size-item[aria-current="true"] {
+  background: var(--field);
+  box-shadow: inset 3px 0 0 var(--lid);
+  font-weight: 650;
+}
+
+.size-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: "fields preview" "actions actions";
+  /* Never shorter than their content: the dialog fixes the form's height, and plain auto rows squeeze the preview. */
+  grid-template-rows: minmax(max-content, 1fr) max-content;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.size-fields {
+  grid-area: fields;
+  padding: 18px 24px;
+}
+
+.setting-row { padding-bottom: 18px; }
+
+.setting-row .hint { margin: 8px 0 0; }
+
+.dimensions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
+
+.dimension {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.dimension input { width: 6.5rem; color: var(--ink); }
+
+.times { padding-bottom: 10px; color: var(--muted); }
+
+.unit-row { gap: 16px; padding-bottom: 10px; }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.option-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px 20px;
+  margin-top: 14px;
+}
+
+.size-preview {
+  grid-area: preview;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 340px;
+  padding: 24px;
+  background: repeating-linear-gradient(to bottom, var(--tote) 0 46px, var(--tote-rib) 46px 50px);
+}
+
+/* Keep the label's real proportions; the panel grows instead of squeezing it. */
+.size-preview .label { flex: none; }
+
+.size-actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.size-actions .status { flex: 1; text-align: right; }
+
 /* Phones and narrow windows: preview on top, form below */
 
 @media (max-width: 760px) {
@@ -460,4 +620,24 @@ dialog::backdrop { background: rgba(15, 17, 19, 0.55); }
     padding: 22px 16px 32px;
     border-right: 0;
   }
+
+  .size-editor-body { grid-template-columns: 1fr; overflow-y: auto; }
+
+  .size-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    overflow: visible;
+  }
+
+  .size-form {
+    grid-template-columns: 1fr;
+    grid-template-areas: "preview" "fields" "actions";
+    grid-template-rows: max-content;
+    grid-auto-rows: max-content;
+    overflow: visible;
+  }
+
+  .size-preview { min-height: 240px; }
+  .size-fields { padding: 18px 16px; }
+  .size-actions { padding: 14px 16px; flex-wrap: wrap; }
 }

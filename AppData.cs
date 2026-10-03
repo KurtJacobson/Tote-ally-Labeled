@@ -6,18 +6,20 @@ namespace ToteLabels;
 // a printer that starts printing slightly off the top edge.
 public record AppSettings(string PrinterIp, int Dpi, double TopOffsetMm = 0);
 
-// Settings and the logo live in the folder given, %LOCALAPPDATA%\ToteLabels.
+// Settings, label sizes and the logo live in the folder given, %LOCALAPPDATA%\ToteLabels.
 public class AppData
 {
     static readonly AppSettings Defaults = new("", 203);
     static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     readonly string settingsPath;
+    readonly string sizesPath;
 
     public AppData(string folder)
     {
         Directory.CreateDirectory(folder);
         settingsPath = Path.Combine(folder, "settings.json");
+        sizesPath = Path.Combine(folder, "sizes.json");
         LogoPath = Path.Combine(folder, "logo.png");
     }
 
@@ -31,4 +33,12 @@ public class AppData
 
     public void SaveSettings(AppSettings settings) =>
         File.WriteAllText(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
+
+    // Until the user changes a size, the built-in ones.
+    public LabelSize[] LoadSizes() => File.Exists(sizesPath)
+        ? JsonSerializer.Deserialize<LabelSize[]>(File.ReadAllText(sizesPath)) is { Length: > 0 } sizes ? sizes : LabelLayouts.Defaults
+        : LabelLayouts.Defaults;
+
+    public void SaveSizes(IEnumerable<LabelSize> sizes) =>
+        File.WriteAllText(sizesPath, JsonSerializer.Serialize(sizes, JsonOptions));
 }

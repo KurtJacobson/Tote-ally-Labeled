@@ -46,27 +46,44 @@ function showStatus(element, message, kind = "") {
 
 // ---------- Label size ----------
 
+// Names come from the user, so they are always set as text, never as HTML.
+function shapeIcon(size) {
+  const shape = document.createElement("span");
+  shape.className = "shape";
+  shape.classList.toggle("round", size.round);
+  shape.style.aspectRatio = `${size.widthInches} / ${size.round ? size.widthInches : size.heightInches}`;
+  return shape;
+}
+
 function renderSizePicker() {
+  $("sizes").replaceChildren();
   for (const layout of state.layouts) {
     const option = document.createElement("label");
     option.className = "segment";
-    option.innerHTML = `
-      <input type="radio" name="size" class="visually-hidden" value="${layout.id}">
-      <span><span class="shape" style="aspect-ratio: ${layout.widthInches} / ${layout.heightInches}"></span>${layout.name}</span>`;
-    option.querySelector("input").addEventListener("change", () => selectLayout(layout.id));
+    const input = document.createElement("input");
+    Object.assign(input, { type: "radio", name: "size", className: "visually-hidden", value: layout.id });
+    input.addEventListener("change", () => selectLayout(layout.id));
+    const face = document.createElement("span");
+    face.append(shapeIcon(layout), layout.name);
+    option.append(input, face);
     $("sizes").append(option);
   }
 }
 
 function selectLayout(id) {
   state.layout = state.layouts.find(layout => layout.id === id) ?? state.layouts[0];
-  document.querySelector(`input[name="size"][value="${state.layout.id}"]`).checked = true;
+  for (const input of document.querySelectorAll('input[name="size"]')) {
+    input.checked = input.value === state.layout.id;
+  }
 
   try { localStorage.setItem("toteLabels.size", state.layout.id); } catch { }
 
-  const maxLines = state.layout.contents.maxLines;
-  $("contents-hint").textContent = `One item per line, up to ${maxLines} lines`;
-  $("size-caption").textContent = `${state.layout.name} label`;
+  const contents = state.layout.contents;
+  $("contents").disabled = !contents;
+  $("contents-hint").textContent = contents
+    ? `One item per line, up to ${contents.maxLines} lines`
+    : "This size only has room for a title.";
+  $("size-caption").textContent = `${state.layout.name} label${state.layout.sideways ? ", printed sideways" : ""}`;
 
   arrangePreview();
   updatePreview();
@@ -76,57 +93,80 @@ function rememberedSize() {
   try { return localStorage.getItem("toteLabels.size"); } catch { return null; }
 }
 
+// After the sizes change: rebuild the picker and keep the current size if it still exists.
+function applyLayouts(layouts) {
+  state.layouts = layouts;
+  renderSizePicker();
+  selectLayout(state.layout?.id);
+}
+
 // ---------- Preview ----------
 // The layout comes from the server in printer dots, so the preview is placed
 // with the same numbers the printer uses, as percentages of the label.
+// The main preview and the size editor's preview are both drawn by these.
+
+// The main preview narrows with the window; the editor's preview is at most 300 px wide, which its panel
+// always has room for, and leaving it uncapped is what lets the panel grow to the label's height.
+const mainView = {
+  fluid: true,
+  label: $("label"), logo: $("preview-logo"), title: $("preview-title"),
+  divider: $("preview-divider"), contents: $("preview-contents")
+};
+
+const sizeView = {
+  label: $("size-label"), logo: $("size-preview-logo"), title: $("size-preview-title"),
+  divider: $("size-preview-divider"), contents: $("size-preview-contents")
+};
 
 const percent = (dots, total) => `${(dots / total) * 100}%`;
 
-function place(element, box) {
+function place(element, box, layout) {
   element.hidden = !box;
   if (!box) return;
 
-  const { widthDots, heightDots } = state.layout;
   Object.assign(element.style, {
-    left: percent(box.x, widthDots),
-    top: percent(box.y, heightDots),
-    width: percent(box.width, widthDots),
-    height: percent(box.height, heightDots)
+    left: percent(box.x, layout.widthDots),
+    top: percent(box.y, layout.heightDots),
+    width: percent(box.width, layout.widthDots),
+    height: percent(box.height, layout.heightDots)
   });
 }
 
-function placeText(element, block) {
-  const lineHeight = block.fontSize + block.lineGap;
-  place(element, { x: block.x, y: block.y, width: block.width, height: lineHeight * block.maxLines });
+function placeText(element, block, layout) {
+  if (!block) {
+    place(element, null, layout);
+    return;
+  }
 
-  element.style.fontSize = `${(block.fontSize / state.layout.widthDots) * 100}cqw`;
+  const lineHeight = block.fontSize + block.lineGap;
+  place(element, { x: block.x, y: block.y, width: block.width, height: lineHeight * block.maxLines }, layout);
+
+  element.style.fontSize = `${(block.fontSize / layout.widthDots) * 100}cqw`;
   element.style.lineHeight = lineHeight / block.fontSize;
   element.style.textAlign = block.align === "C" ? "center" : "left";
 }
 
-function arrangePreview() {
-  const layout = state.layout;
+// Fits the label in a maxWidth × maxHeight px area, keeping its real proportions.
+function arrangeLabel(view, layout, maxWidth, maxHeight) {
+  const pixelsPerInch = Math.min(maxHeight / layout.heightInches, maxWidth / layout.widthInches);
+  view.label.style.width = `${layout.widthInches * pixelsPerInch}px`;
+  view.label.style.maxWidth = view.fluid ? "100%" : "";
+  view.label.style.aspectRatio = `${layout.widthDots} / ${layout.heightDots}`;
+  view.label.classList.toggle("round", layout.round);
 
-  // Fit the label in roughly a 380 × 400 px area, keeping its real proportions.
-  const pixelsPerInch = Math.min(400 / layout.heightInches, 380 / layout.widthInches);
-  const label = $("label");
-  label.style.width = `min(100%, ${layout.widthInches * pixelsPerInch}px)`;
-  label.style.aspectRatio = `${layout.widthDots} / ${layout.heightDots}`;
-
-  placeText($("preview-title"), layout.title);
-  placeText($("preview-contents"), layout.contents);
+  placeText(view.title, layout.title, layout);
+  placeText(view.contents, layout.contents, layout);
 
   const rule = layout.divider;
-  place($("preview-divider"), rule && { x: rule.x, y: rule.y, width: rule.width, height: rule.thickness });
+  place(view.divider, rule && { x: rule.x, y: rule.y, width: rule.width, height: rule.thickness }, layout);
 
-  place($("preview-logo"), layout.logo);
-  showLogoInPreview();
+  place(view.logo, layout.logo, layout);
+  view.logo.hidden = !(state.hasLogo && layout.logo);
 }
 
-function updatePreview() {
-  setPreviewText($("preview-title"), $("title").value.trim(), sample.title);
-  setPreviewText($("preview-contents"), $("contents").value.trimEnd(), sample.contents);
-  checkFit();
+function fillLabel(view, title, contents) {
+  setPreviewText(view.title, title, sample.title);
+  setPreviewText(view.contents, contents, sample.contents);
 }
 
 function setPreviewText(element, text, placeholder) {
@@ -134,22 +174,235 @@ function setPreviewText(element, text, placeholder) {
   element.classList.toggle("empty", !text);
 }
 
-function checkFit() {
-  // Allow half a line of slack so rounding doesn't trigger a false warning.
+// Which parts have more text than their block holds. Allow half a line of slack
+// so rounding doesn't trigger a false warning.
+function overflowingParts(view) {
   const overflows = element =>
     !element.hidden &&
     !element.classList.contains("empty") &&
     element.scrollHeight - element.clientHeight > parseFloat(getComputedStyle(element).fontSize) / 2;
 
-  const parts = [];
-  if (overflows($("preview-title"))) parts.push("title");
-  if (overflows($("preview-contents"))) parts.push("contents");
+  return [["title", view.title], ["contents", view.contents]]
+    .filter(([, element]) => overflows(element))
+    .map(([name]) => name);
+}
 
+function arrangePreview() {
+  arrangeLabel(mainView, state.layout, 380, 400);
+}
+
+function updatePreview() {
+  fillLabel(mainView, $("title").value.trim(), state.layout.contents ? $("contents").value.trimEnd() : "");
+  checkFit();
+}
+
+function checkFit() {
+  const parts = overflowingParts(mainView);
   const warning = $("fit-warning");
   warning.hidden = parts.length === 0;
   warning.textContent =
     `The ${parts.join(" and ")} won't fit on a ${state.layout.name} label. ` +
     "Shorten it, or the printer will print lines on top of each other.";
+}
+
+// ---------- Label size editor ----------
+// Edits are held here until Save changes, which replaces the whole list on the server.
+// The preview asks the server for each draft's layout, so it is exactly what would print.
+
+const editor = { sizes: [], index: 0, unit: "in", dirty: false, timer: 0, request: 0 };
+
+const MM_PER_INCH = 25.4;
+
+function formatLength(inches, unit) {
+  return unit === "mm"
+    ? String(Math.round(inches * MM_PER_INCH * 10) / 10)
+    : String(Math.round(inches * 1000) / 1000);
+}
+
+// Matches LabelLayouts.DisplayName on the server.
+function sizeName(size) {
+  if (size.name.trim()) return size.name.trim();
+  const width = formatLength(size.widthInches, size.unit);
+  return size.round
+    ? `${width} ${size.unit} round`
+    : `${width} × ${formatLength(size.heightInches, size.unit)} ${size.unit}`;
+}
+
+function openSizeEditor() {
+  editor.sizes = state.layouts.map(layout => ({ ...layout.size }));
+  editor.dirty = false;
+  showStatus($("size-status"), "");
+  selectSize(Math.max(0, editor.sizes.findIndex(size => size.id === state.layout.id)));
+  $("size-editor").showModal();
+}
+
+function closeSizeEditor() {
+  if (editor.dirty && !confirm("Discard the changes to label sizes?")) return;
+  $("size-editor").close();
+}
+
+function renderSizeList() {
+  const list = $("size-list");
+  list.replaceChildren();
+  editor.sizes.forEach((size, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "size-item";
+    button.setAttribute("aria-current", index === editor.index ? "true" : "false");
+    button.append(shapeIcon(size), sizeName(size));
+    button.addEventListener("click", () => selectSize(index));
+    const item = document.createElement("li");
+    item.append(button);
+    list.append(item);
+  });
+  $("remove-size").disabled = editor.sizes.length < 2;
+}
+
+function selectSize(index) {
+  editor.index = index;
+  fillSizeForm(editor.sizes[index]);
+  renderSizeList();
+  previewSize();
+}
+
+function checkRadio(name, value) {
+  document.querySelector(`input[name="${name}"][value="${value}"]`).checked = true;
+}
+
+const radioValue = name => document.querySelector(`input[name="${name}"]:checked`).value;
+
+function fillSizeForm(size) {
+  editor.unit = size.unit;
+  checkRadio("shape", size.round ? "round" : "rect");
+  checkRadio("unit", size.unit);
+  $("size-width").value = formatLength(size.widthInches, size.unit);
+  $("size-height").value = formatLength(size.heightInches, size.unit);
+  $("size-name").value = size.name;
+  $("size-logo").checked = size.showLogo;
+  checkRadio("title-lines", size.titleLines);
+  checkRadio("align", size.contentsAlign);
+  showShapeFields(size);
+}
+
+function showShapeFields(size) {
+  const widest = size.unit === "mm" ? "103.9 mm" : "4.09 in";
+  $("height-field").hidden = size.round;
+  $("size-times").hidden = size.round;
+  $("width-label").textContent = size.round ? "Diameter" : "Width";
+  $("size-name").placeholder = sizeName({ ...size, name: "" });
+  $("size-hint").textContent = size.round
+    ? `Round labels can be up to ${widest} across.`
+    : `One side can be up to ${widest}, the widest the printer prints. ` +
+      "A label wider than that prints sideways on a narrower roll.";
+}
+
+function readSizeForm() {
+  const unit = radioValue("unit");
+  const toInches = value => parseFloat(value) / (unit === "mm" ? MM_PER_INCH : 1);
+  const round = radioValue("shape") === "round";
+  const widthInches = toInches($("size-width").value);
+  return {
+    ...editor.sizes[editor.index],
+    name: $("size-name").value,
+    widthInches,
+    heightInches: round ? widthInches : toInches($("size-height").value),
+    unit,
+    round,
+    showLogo: $("size-logo").checked,
+    titleLines: Number(radioValue("title-lines")),
+    contentsAlign: radioValue("align")
+  };
+}
+
+function onSizeFormInput(event) {
+  // Switching units keeps the size and rewrites the numbers in the new unit.
+  // Left-aligned contents look lopsided in a circle, so choosing Round centres them (they can be changed back).
+  if (event.target.name === "shape" && event.target.value === "round") checkRadio("align", "C");
+
+  if (event.target.name === "unit") {
+    const before = editor.sizes[editor.index];
+    editor.unit = event.target.value;
+    $("size-width").value = formatLength(before.widthInches, editor.unit);
+    $("size-height").value = formatLength(before.heightInches, editor.unit);
+  }
+
+  const size = readSizeForm();
+  editor.sizes[editor.index] = size;
+  editor.dirty = true;
+  showShapeFields(size);
+  renderSizeList();
+  showStatus($("size-status"), "");
+  clearTimeout(editor.timer);
+  editor.timer = setTimeout(previewSize, 150);
+}
+
+async function previewSize() {
+  const size = editor.sizes[editor.index];
+  const request = ++editor.request;
+
+  if (!(size.widthInches > 0) || !(size.heightInches > 0)) {
+    showSizeProblem(size.round ? "Enter the diameter." : "Enter the width and height.");
+    return;
+  }
+
+  try {
+    const layout = await sendJson("/api/sizes/preview", size);
+    if (request !== editor.request) return;  // a newer edit is already on its way
+
+    sizeView.label.classList.remove("invalid");
+    arrangeLabel(sizeView, layout, 300, 280);
+    fillLabel(sizeView, "", "");
+    $("size-preview-caption").textContent =
+      (layout.contents ? `Up to ${layout.contents.maxLines} content lines` : "Room for a title only") +
+      (layout.sideways ? ", printed sideways" : "");
+
+    const noLogo = size.showLogo && !layout.logo;
+    $("logo-hint").hidden = !noLogo;
+    $("logo-hint").textContent = !noLogo ? ""
+      : size.round ? "A round label needs to be at least 2.5 in (64 mm) across for the logo."
+      : "A label needs to be at least 1.75 in (45 mm) tall for the logo.";
+  } catch (error) {
+    if (request === editor.request) showSizeProblem(error.message);
+  }
+}
+
+function showSizeProblem(message) {
+  sizeView.label.classList.add("invalid");
+  showStatus($("size-status"), message, "error");
+}
+
+function addSize() {
+  editor.sizes.push({
+    id: "", name: "", widthInches: 4, heightInches: 2, unit: editor.unit,
+    round: false, showLogo: false, titleLines: 1, contentsAlign: "L"
+  });
+  editor.dirty = true;
+  selectSize(editor.sizes.length - 1);
+  $("size-width").focus();
+}
+
+function removeSize() {
+  if (editor.sizes.length < 2) return;
+  editor.sizes.splice(editor.index, 1);
+  editor.dirty = true;
+  selectSize(Math.min(editor.index, editor.sizes.length - 1));
+}
+
+async function saveSizes(event) {
+  event.preventDefault();
+  $("save-size").disabled = true;
+  try {
+    const layouts = await sendJson("/api/sizes", editor.sizes, "PUT");
+    applyLayouts(layouts);
+    editor.sizes = layouts.map(layout => ({ ...layout.size }));
+    editor.dirty = false;
+    selectSize(Math.min(editor.index, editor.sizes.length - 1));
+    showStatus($("size-status"), "Saved.", "ok");
+  } catch (error) {
+    showStatus($("size-status"), error.message, "error");
+  } finally {
+    $("save-size").disabled = false;
+  }
 }
 
 // ---------- Printing ----------
@@ -266,6 +519,7 @@ function loadLogo() {
   const source = `/api/logo?v=${Date.now()}`;  // new URL so the browser skips its cache
   $("preview-logo").src = source;
   $("settings-logo").src = source;
+  $("size-preview-logo").src = source;
 }
 
 function setHasLogo(hasLogo) {
@@ -277,7 +531,7 @@ function setHasLogo(hasLogo) {
 }
 
 function showLogoInPreview() {
-  $("preview-logo").hidden = !(state.hasLogo && state.layout?.logo);
+  if (state.layout) arrangePreview();
 }
 
 async function uploadLogo(event) {
@@ -320,7 +574,7 @@ $("title").addEventListener("keydown", event => {
 
 // Ctrl + Enter (Cmd + Enter on a Mac) prints from anywhere.
 document.addEventListener("keydown", event => {
-  if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !$("settings").open) {
+  if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !document.querySelector("dialog[open]")) {
     event.preventDefault();
     printLabel();
   }
@@ -331,6 +585,17 @@ $("printer-status").addEventListener("click", openSettings);
 $("open-settings").addEventListener("click", openSettings);
 $("close-settings").addEventListener("click", () => $("settings").close());
 $("settings-form").addEventListener("submit", saveSettings);
+
+$("edit-sizes").addEventListener("click", openSizeEditor);
+$("close-size-editor").addEventListener("click", closeSizeEditor);
+$("size-editor").addEventListener("cancel", event => {  // Esc
+  event.preventDefault();
+  closeSizeEditor();
+});
+$("size-form").addEventListener("input", onSizeFormInput);
+$("size-form").addEventListener("submit", saveSizes);
+$("add-size").addEventListener("click", addSize);
+$("remove-size").addEventListener("click", removeSize);
 
 $("test-printer").addEventListener("click", () =>
   sendPrinterCommand("/api/printer/check", "test-status", "Connected to the printer."));

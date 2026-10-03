@@ -4,7 +4,16 @@ Prints storage tote labels on a Zebra network printer (ZPL over TCP port 9100). 
 app: a WebView2 window showing a page served by the app's own web server on port 5050, which phones and
 other computers on the network can also open while the app is running.
 
-Settings and the logo are stored per user in `%LOCALAPPDATA%\ToteLabels`.
+Settings, label sizes and the logo are stored per user in `%LOCALAPPDATA%\ToteLabels`, so they carry
+over when a new version is installed.
+
+## Label sizes
+
+**Add or change label sizes** (under the size picker) edits the list of sizes. Each size is a rectangle
+or a round label, entered in inches or mm, with options for the logo, one or two title lines, and left or
+centred contents. The layout is worked out from the size (`LabelLayouts.cs`), and the editor's preview
+shows exactly what will print. A size wider than the printer's 4.09 in head prints sideways on a narrower
+roll.
 
 ## Build and run
 
