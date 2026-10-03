@@ -74,11 +74,13 @@ public static class LabelLayouts
         return null;
     }
 
-    public static LabelLayout Build(LabelSize size)
+    // logoAspect is the uploaded logo's width / height, or null when there is no logo. The logo's space is
+    // sized to it, so a square logo beside the title takes a square and leaves the rest to the title.
+    public static LabelLayout Build(LabelSize size, double? logoAspect)
     {
         if (size.Round)
             size = size with { HeightInches = size.WidthInches };
-        return size.Round ? BuildRound(size) : BuildRectangle(size);
+        return size.Round ? BuildRound(size, logoAspect) : BuildRectangle(size, logoAspect);
     }
 
     public static string DisplayName(LabelSize size) =>
@@ -88,7 +90,7 @@ public static class LabelLayouts
 
     // Margin, title, divider, then as many content lines as fit. Tuned so the built-in sizes
     // come out within a few dots of the layouts they had when they were placed by hand.
-    static LabelLayout BuildRectangle(LabelSize size)
+    static LabelLayout BuildRectangle(LabelSize size, double? logoAspect)
     {
         int w = Dots(size.WidthInches), h = Dots(size.HeightInches);
         int margin = R(8 + Math.Min(w, h) * 0.027);
@@ -100,20 +102,22 @@ public static class LabelLayouts
         // The logo goes across the top when it would be at least as tall as the title text,
         // which suits tall labels; on shorter ones it goes beside the title instead.
         int logoOnTopHeight = R(Math.Min(h * 0.14, 180));
-        bool logoOnTop = size.ShowLogo && logoOnTopHeight >= fonts.Title;
+        bool showLogo = size.ShowLogo && logoAspect is not null;
+        double aspect = logoAspect ?? 1;
+        bool logoOnTop = showLogo && logoOnTopHeight >= fonts.Title;
         Box? logo = null;
         if (logoOnTop)
         {
-            int logoWidth = Math.Min(w - 2 * margin, R(logoOnTopHeight * 3.75));
+            int logoWidth = Math.Min(w - 2 * margin, R(logoOnTopHeight * aspect));
             logo = new Box((w - logoWidth) / 2, y, logoWidth, logoOnTopHeight);
             y += logoOnTopHeight + margin;
         }
         int titleX = margin, titleWidth = w - 2 * margin;
 
         // Otherwise the logo sits beside the title, as tall as the title, and the title moves over.
-        if (size.ShowLogo && !logoOnTop)
+        if (showLogo && !logoOnTop)
         {
-            int logoWidth = Math.Min(R(titleHeight * 2.5), R(w * 0.3));
+            int logoWidth = Math.Min(R(titleHeight * aspect), R(w * 0.3));
             logo = new Box(margin, y, logoWidth, titleHeight);
             titleX += logoWidth + margin;
             titleWidth -= logoWidth + margin;
@@ -137,7 +141,7 @@ public static class LabelLayouts
 
     // The same stack, centred on the label, with each block narrowed to the width of the circle at its
     // top or bottom edge, whichever is narrower. Takes as many content lines as stay inside the circle.
-    static LabelLayout BuildRound(LabelSize size)
+    static LabelLayout BuildRound(LabelSize size, double? logoAspect)
     {
         int d = Dots(size.WidthInches);
         double centre = d / 2.0;
@@ -171,7 +175,7 @@ public static class LabelLayouts
                 {
                     double half = HalfWidth(y, y + logoHeight);
                     if (half < d * 0.15) continue;
-                    int logoWidth = Math.Min(R(2 * half), R(logoHeight * 3.75));
+                    int logoWidth = Math.Min(R(2 * half), R(logoHeight * (logoAspect ?? 1)));
                     logo = new Box(R(centre - logoWidth / 2.0), R(y), logoWidth, logoHeight);
                     y += logoHeight + margin;
                 }
@@ -199,7 +203,7 @@ public static class LabelLayouts
 
         // With the logo if it fits and still leaves room for contents; otherwise without it,
         // rather than losing the contents to make room.
-        var withLogo = size.ShowLogo ? Stack(true) : null;
+        var withLogo = size.ShowLogo && logoAspect is not null ? Stack(true) : null;
         var withoutLogo = Stack(false);
         if (withLogo is not null && (withLogo.Contents is not null || withoutLogo?.Contents is null))
             return withLogo;

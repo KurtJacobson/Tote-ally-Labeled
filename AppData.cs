@@ -27,6 +27,18 @@ public class AppData
 
     public bool HasLogo => File.Exists(LogoPath);
 
+    // The logo's width / height, or null when none is uploaded. Read from the file's header only.
+    public double? LogoAspect
+    {
+        get
+        {
+            if (!HasLogo) return null;
+            using var stream = File.OpenRead(LogoPath);
+            using var image = System.Drawing.Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: false);
+            return image.Height > 0 ? (double)image.Width / image.Height : null;
+        }
+    }
+
     public AppSettings LoadSettings() => File.Exists(settingsPath)
         ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(settingsPath)) ?? Defaults
         : Defaults;

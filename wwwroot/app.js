@@ -80,6 +80,11 @@ function rememberedSize() {
   try { return localStorage.getItem("toteLabels.size"); } catch { return null; }
 }
 
+// The layouts depend on the logo's proportions, so they are fetched again when the logo changes.
+async function refreshLayouts() {
+  applyLayouts(await api("/api/layouts"));
+}
+
 // After the sizes change: rebuild the picker and keep the current size if it still exists.
 function applyLayouts(layouts) {
   state.layouts = layouts;
@@ -531,6 +536,7 @@ async function uploadLogo(event) {
     await api("/api/logo", { method: "PUT", body: file });
     showStatus($("logo-status"), "Logo updated.", "ok");
     loadLogo();
+    await refreshLayouts();
   } catch (error) {
     showStatus($("logo-status"), error.message, "error");
   }
@@ -542,6 +548,7 @@ async function removeLogo() {
     await api("/api/logo", { method: "DELETE" });
     showStatus($("logo-status"), "Logo removed.", "ok");
     loadLogo();
+    await refreshLayouts();
   } catch (error) {
     showStatus($("logo-status"), error.message, "error");
   }

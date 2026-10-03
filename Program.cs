@@ -29,13 +29,16 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache"
 });
 
-app.MapGet("/api/layouts", () => data.LoadSizes().Select(LabelLayouts.Build));
+// Layouts depend on the logo's proportions, so they are worked out with the logo as it is now.
+LabelLayout Layout(LabelSize size) => LabelLayouts.Build(size, data.LogoAspect);
+
+app.MapGet("/api/layouts", () => data.LoadSizes().Select(Layout));
 
 // The layout a size would get, for the live preview while it is being edited. Nothing is saved.
 app.MapPost("/api/sizes/preview", (LabelSize size) =>
     LabelLayouts.Problem(size) is { } problem
         ? Results.Text(problem, statusCode: 400)
-        : Results.Ok(LabelLayouts.Build(size)));
+        : Results.Ok(Layout(size)));
 
 // Replaces the whole list of sizes. A size with no Id is new and gets one here.
 app.MapPut("/api/sizes", (LabelSize[] sizes) =>
@@ -57,7 +60,7 @@ app.MapPut("/api/sizes", (LabelSize[] sizes) =>
         return Results.Text("Two sizes have the same id.", statusCode: 400);
 
     data.SaveSizes(sizes);
-    return Results.Ok(sizes.Select(LabelLayouts.Build));
+    return Results.Ok(sizes.Select(Layout));
 });
 
 // The release version from Directory.Build.props, without the +<git describe> build detail.
@@ -108,7 +111,7 @@ app.MapDelete("/api/logo", () =>
 
 app.MapPost("/api/print", async (PrintRequest request) =>
 {
-    var layout = data.LoadSizes().Where(size => size.Id == request.LayoutId).Select(LabelLayouts.Build).FirstOrDefault();
+    var layout = data.LoadSizes().Where(size => size.Id == request.LayoutId).Select(Layout).FirstOrDefault();
     if (layout is null)
         return Results.Text("Unknown label size.", statusCode: 400);
     if (string.IsNullOrWhiteSpace(request.Title))
