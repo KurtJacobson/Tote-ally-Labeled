@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+
+# Settings from before the desktop app; they live in %LOCALAPPDATA%\ToteLabels now.
+data/
+
+# Installer build output
+dist/
+installer/Output/

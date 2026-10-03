@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tote Labels</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand"><span class="brand-mark" aria-hidden="true"></span>Tote Labels</h1>
+    <div class="topbar-actions">
+      <button type="button" id="printer-status" class="status-pill" title="Printer settings">
+        <span class="visually-hidden">Printer: </span><span id="printer-status-text">Checking…</span>
+      </button>
+      <button type="button" id="open-settings" class="button-quiet">Settings</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="editor" aria-label="Label text">
+      <fieldset class="field">
+        <legend class="field-label">Label size</legend>
+        <div id="sizes" class="segmented"></div>
+      </fieldset>
+
+      <div class="field">
+        <label class="field-label" for="title">Title</label>
+        <input id="title" class="title-input" spellcheck="true" autocomplete="off" placeholder="Holiday decorations">
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="contents">Contents</label>
+        <p class="hint" id="contents-hint">One item per line</p>
+        <textarea id="contents" spellcheck="true" aria-describedby="contents-hint"
+                  placeholder="String lights&#10;Ornaments&#10;Tree skirt"></textarea>
+      </div>
+
+      <p id="fit-warning" class="warning" hidden></p>
+
+      <div class="print-row">
+        <div class="copies">
+          <label class="field-label" for="copies">Copies</label>
+          <input id="copies" type="number" min="1" max="99" value="1">
+        </div>
+        <button type="button" id="print" class="button-primary" title="Ctrl + Enter">Print label</button>
+      </div>
+
+      <p id="status" class="status" role="status"></p>
+    </section>
+
+    <section class="bench" aria-label="Label preview">
+      <div id="label" class="label">
+        <img id="preview-logo" class="label-logo" alt="" hidden>
+        <div id="preview-title" class="label-text"></div>
+        <div id="preview-divider" class="label-rule"></div>
+        <div id="preview-contents" class="label-text"></div>
+      </div>
+      <p id="size-caption" class="bench-caption"></p>
+    </section>
+  </main>
+
+  <dialog id="settings" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <div class="dialog-head">
+        <h2 id="settings-title">Settings</h2>
+        <button type="button" id="close-settings" class="button-quiet">Close</button>
+      </div>
+
+      <div class="dialog-body">
+        <div class="setting">
+          <label class="field-label" for="printer-ip">Printer IP address</label>
+          <p class="hint">To find it, print a network configuration label from the printer's menu.</p>
+          <div class="inline-row">
+            <input id="printer-ip" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.50">
+            <button type="button" id="test-printer" class="button-quiet">Test</button>
+          </div>
+          <p id="test-status" class="status" role="status"></p>
+        </div>
+
+        <div class="setting" role="radiogroup" aria-labelledby="dpi-label">
+          <p class="field-label" id="dpi-label">Print resolution</p>
+          <p class="hint">It's on the sticker under the printer.</p>
+          <div class="radio-row">
+            <label><input type="radio" name="dpi" value="203"> 203 dpi</label>
+            <label><input type="radio" name="dpi" value="300"> 300 dpi</label>
+          </div>
+        </div>
+
+        <div class="setting">
+          <label class="field-label" for="top-offset">Top offset (mm)</label>
+          <p class="hint">If labels print too high, raise this to move everything down. Use a negative number to move it up.</p>
+          <input id="top-offset" class="offset-input" type="number" min="-10" max="10" step="0.5" value="0">
+        </div>
+
+        <div class="setting">
+          <p class="field-label">Logo</p>
+          <p class="hint">Prints across the top of 4 × 6 and 6 × 4 labels. A black logo on a white or transparent background prints cleanest.</p>
+          <div class="logo-box">
+            <img id="settings-logo" alt="Current logo" hidden>
+            <span id="no-logo">No logo uploaded</span>
+          </div>
+          <div class="inline-row">
+            <label class="button-quiet file-button">
+              Upload logo
+              <input type="file" id="logo-file" class="visually-hidden" accept="image/*">
+            </label>
+            <button type="button" id="remove-logo" class="button-quiet" hidden>Remove logo</button>
+          </div>
+          <p id="logo-status" class="status" role="status"></p>
+        </div>
+
+        <div class="setting">
+          <p class="field-label">Calibrate</p>
+          <p class="hint">Run this after loading a different roll so the printer learns the new label size. It feeds a few blank labels.</p>
+          <button type="button" id="calibrate" class="button-quiet">Calibrate printer</button>
+          <p id="calibrate-status" class="status" role="status"></p>
+        </div>
+      </div>
+
+      <div class="dialog-foot">
+        <p id="save-status" class="status" role="status"></p>
+        <button type="submit" class="button-primary">Save settings</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
