@@ -20,7 +20,7 @@ Needs the .NET 8 SDK and [Inno Setup 6](https://jrsoftware.org/isdl.php).
 powershell -ExecutionPolicy Bypass -File build\make-installer.ps1
 ```
 
-This publishes the app self-contained into `dist\` and writes `installer\Output\ToteLabelsSetup-<version>.exe`.
+This publishes the app self-contained into `dist\` and writes `installer\Output\Tote-ally-Labeled-Setup-<version>.exe`.
 
 ## Versions
 

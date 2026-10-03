@@ -61,10 +61,10 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ steps.ver.outputs.version }}'
-          $exe = Get-Item "installer/Output/ToteLabelsSetup-$version.exe" -ErrorAction SilentlyContinue
+          $exe = Get-Item "installer/Output/Tote-ally-Labeled-Setup-$version.exe" -ErrorAction SilentlyContinue
           if (-not $exe) {
-            $found = (Get-ChildItem installer/Output/ToteLabelsSetup-*.exe | ForEach-Object Name) -join ', '
-            throw "expected installer/Output/ToteLabelsSetup-$version.exe, found: $found"
+            $found = (Get-ChildItem installer/Output/Tote-ally-Labeled-Setup-*.exe | ForEach-Object Name) -join ', '
+            throw "expected installer/Output/Tote-ally-Labeled-Setup-$version.exe, found: $found"
           }
           "path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
           "installer $($exe.Name), $([math]::Round($exe.Length / 1MB, 1)) MB"
@@ -74,7 +74,7 @@ jobs:
         if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v4
         with:
-          name: ToteLabelsSetup-${{ steps.ver.outputs.version }}
+          name: Tote-ally-Labeled-Setup-${{ steps.ver.outputs.version }}
           path: ${{ steps.exe.outputs.path }}
           retention-days: 7
 

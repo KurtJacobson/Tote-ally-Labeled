@@ -1,5 +1,5 @@
 # One-shot installer build: publish the app into .\dist, then compile installer\totelabels.iss into
-#   installer\Output\ToteLabelsSetup-<version>.exe
+#   installer\Output\Tote-ally-Labeled-Setup-<version>.exe
 # Run from anywhere:  pwsh -File build\make-installer.ps1 [-Ver 0.1.0]
 param([string]$Ver)
 $ErrorActionPreference = 'Stop'
@@ -40,5 +40,5 @@ Write-Host "== compiling installer ($iscc) ==" -ForegroundColor Cyan
 & $iscc "/DAppVer=$ver" $iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
-$out = Join-Path $root "installer\Output\ToteLabelsSetup-$ver.exe"
+$out = Join-Path $root "installer\Output\Tote-ally-Labeled-Setup-$ver.exe"
 Write-Host "== installer ready -> $out ==" -ForegroundColor Green

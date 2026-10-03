@@ -1,5 +1,5 @@
 ; Inno Setup script for Tote-ally Labeled. Build with build\make-installer.ps1, which publishes the app into ..\dist
-; and passes the version in (iscc /DAppVer=...). Produces ToteLabelsSetup-<version>.exe in .\Output.
+; and passes the version in (iscc /DAppVer=...). Produces Tote-ally-Labeled-Setup-<version>.exe in .\Output.
 ;
 ; The app is published self-contained, so the PC needs no .NET runtime. It does need the WebView2 runtime,
 ; which every current Windows 10 and 11 has; setup downloads it from Microsoft only when it is missing.
@@ -28,7 +28,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=ToteLabelsSetup-{#AppVer}
+OutputBaseFilename=Tote-ally-Labeled-Setup-{#AppVer}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
