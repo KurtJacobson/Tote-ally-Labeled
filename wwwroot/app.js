@@ -56,25 +56,12 @@ function shapeIcon(size) {
 }
 
 function renderSizePicker() {
-  $("sizes").replaceChildren();
-  for (const layout of state.layouts) {
-    const option = document.createElement("label");
-    option.className = "segment";
-    const input = document.createElement("input");
-    Object.assign(input, { type: "radio", name: "size", className: "visually-hidden", value: layout.id });
-    input.addEventListener("change", () => selectLayout(layout.id));
-    const face = document.createElement("span");
-    face.append(shapeIcon(layout), layout.name);
-    option.append(input, face);
-    $("sizes").append(option);
-  }
+  $("size").replaceChildren(...state.layouts.map(layout => new Option(layout.name, layout.id)));
 }
 
 function selectLayout(id) {
   state.layout = state.layouts.find(layout => layout.id === id) ?? state.layouts[0];
-  for (const input of document.querySelectorAll('input[name="size"]')) {
-    input.checked = input.value === state.layout.id;
-  }
+  $("size").value = state.layout.id;
 
   try { localStorage.setItem("toteLabels.size", state.layout.id); } catch { }
 
@@ -562,6 +549,7 @@ async function removeLogo() {
 
 // ---------- Wiring ----------
 
+$("size").addEventListener("change", event => selectLayout(event.target.value));
 $("title").addEventListener("input", updatePreview);
 $("contents").addEventListener("input", updatePreview);
 
