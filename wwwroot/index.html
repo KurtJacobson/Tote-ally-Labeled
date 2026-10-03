@@ -33,7 +33,7 @@
         <input id="title" class="title-input" spellcheck="true" autocomplete="off" placeholder="Holiday decorations">
       </div>
 
-      <div class="field">
+      <div class="field contents-field">
         <label class="field-label" for="contents">Contents</label>
         <p class="hint" id="contents-hint">One item per line</p>
         <textarea id="contents" spellcheck="true" aria-describedby="contents-hint"
@@ -74,7 +74,6 @@
       <div class="size-editor-body">
         <nav class="size-list" aria-label="Label sizes">
           <ul id="size-list"></ul>
-          <button type="button" id="add-size" class="button-quiet">Add size</button>
         </nav>
 
         <form id="size-form" class="size-form" novalidate>
@@ -140,13 +139,15 @@
             </div>
             <p id="size-preview-caption" class="bench-caption"></p>
           </div>
-
-          <div class="size-actions">
-            <button type="button" id="remove-size" class="button-quiet button-danger">Remove size</button>
-            <p id="size-status" class="status" role="status"></p>
-            <button type="submit" id="save-size" class="button-primary">Save changes</button>
-          </div>
         </form>
+      </div>
+
+      <!-- Outside the scrolling area, so these stay in view. -->
+      <div class="size-actions">
+        <button type="button" id="add-size" class="button-quiet">Add size</button>
+        <button type="button" id="remove-size" class="button-quiet button-danger">Remove size</button>
+        <p id="size-status" class="status" role="status"></p>
+        <button type="submit" form="size-form" id="save-size" class="button-primary">Save changes</button>
       </div>
     </div>
   </dialog>
