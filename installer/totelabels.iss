@@ -1,4 +1,4 @@
-; Inno Setup script for Tote Labels. Build with build\make-installer.ps1, which publishes the app into ..\dist
+; Inno Setup script for Tote-ally Labeled. Build with build\make-installer.ps1, which publishes the app into ..\dist
 ; and passes the version in (iscc /DAppVer=...). Produces ToteLabelsSetup-<version>.exe in .\Output.
 ;
 ; The app is published self-contained, so the PC needs no .NET runtime. It does need the WebView2 runtime,
@@ -8,19 +8,21 @@
 #ifndef AppVer
   #define AppVer "0.1.0.0"
 #endif
-#define AppName "Tote Labels"
+#define AppName "Tote-ally Labeled"
 #define AppExe "ToteLabels.exe"
 ; The app's own web server port; other devices on the network reach it here.
 #define Port "5050"
-#define FirewallRule "Tote Labels (TCP 5050)"
+#define FirewallRule "Tote-ally Labeled (TCP 5050)"
+; The rule's name before the app was renamed, which may also have been added by hand. Replaced, not kept beside it.
+#define OldFirewallRule "Tote Labels (TCP 5050)"
 
 [Setup]
 AppId={{0F9F01C9-5559-4451-9F1F-945E1AACBB9B}
 AppName={#AppName}
 AppVersion={#AppVer}
 AppPublisher=Kurt Jacobson
-DefaultDirName={autopf}\Tote Labels
-DefaultGroupName=Tote Labels
+DefaultDirName={autopf}\Tote-ally Labeled
+DefaultGroupName=Tote-ally Labeled
 DisableProgramGroupPage=yes
 ; Admin, for Program Files and the firewall rule.
 PrivilegesRequired=admin
@@ -39,7 +41,7 @@ CloseApplications=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"
-Name: "firewall"; Description: "Allow phones and other computers on this network to use Tote Labels (opens TCP port {#Port} in Windows Firewall)"; GroupDescription: "Network:"
+Name: "firewall"; Description: "Allow phones and other computers on this network to use Tote-ally Labeled (opens TCP port {#Port} in Windows Firewall)"; GroupDescription: "Network:"
 
 [Files]
 Source: "..\dist\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion

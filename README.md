@@ -1,4 +1,4 @@
-# Tote Labels
+# Tote-ally Labeled
 
 Prints storage tote labels on a Zebra network printer (ZPL over TCP port 9100). It is a Windows desktop
 app: a WebView2 window showing a page served by the app's own web server on port 5050, which phones and

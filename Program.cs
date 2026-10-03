@@ -10,7 +10,7 @@ const int Port = 5050;
 using var singleInstance = new Mutex(true, "ToteLabels", out bool firstInstance);
 if (!firstInstance)
 {
-    MessageBox.Show("Tote Labels is already open.", "Tote Labels", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    MessageBox.Show("Tote-ally Labeled is already open.", "Tote-ally Labeled", MessageBoxButtons.OK, MessageBoxIcon.Information);
     return;
 }
 
@@ -103,8 +103,8 @@ try
 }
 catch (IOException)
 {
-    MessageBox.Show($"Tote Labels couldn't start because another program is using port {Port}.",
-        "Tote Labels", MessageBoxButtons.OK, MessageBoxIcon.Error);
+    MessageBox.Show($"Tote-ally Labeled couldn't start because another program is using port {Port}.",
+        "Tote-ally Labeled", MessageBoxButtons.OK, MessageBoxIcon.Error);
     return;
 }
 

@@ -16,7 +16,7 @@ public class MainWindow : Form
         this.url = url;
         browserDataFolder = Path.Combine(dataFolder, "WebView2");
 
-        Text = "Tote Labels";
+        Text = "Tote-ally Labeled";
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);  // tote.ico, built into the exe
         ClientSize = new Size(1100, 760);
         MinimumSize = new Size(480, 480);
@@ -36,8 +36,8 @@ public class MainWindow : Form
         catch (WebView2RuntimeNotFoundException)
         {
             MessageBox.Show(this,
-                "Tote Labels needs the Microsoft Edge WebView2 Runtime. Install it from Microsoft's website, then open Tote Labels again.",
-                "Tote Labels", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                "Tote-ally Labeled needs the Microsoft Edge WebView2 Runtime. Install it from Microsoft's website, then open Tote-ally Labeled again.",
+                "Tote-ally Labeled", MessageBoxButtons.OK, MessageBoxIcon.Error);
             Close();
             return;
         }

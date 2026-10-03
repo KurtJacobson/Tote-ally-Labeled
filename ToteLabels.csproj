@@ -5,7 +5,7 @@
     <OutputType>WinExe</OutputType>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>tote.ico</ApplicationIcon>
-    <Product>Tote Labels</Product>
+    <Product>Tote-ally Labeled</Product>
     <!-- The UI is English; leave out the framework's translated error messages for a dozen other languages. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <Nullable>enable</Nullable>

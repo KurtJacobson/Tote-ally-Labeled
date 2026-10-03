@@ -20,7 +20,7 @@ async function api(path, options = {}) {
   try {
     response = await fetch(path, options);
   } catch {
-    throw new Error("Can't reach the Tote Labels app. Make sure it's still running.");
+    throw new Error("Can't reach the Tote-ally Labeled app. Make sure it's still running.");
   }
 
   if (!response.ok) {

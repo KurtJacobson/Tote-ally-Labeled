@@ -1,4 +1,4 @@
-/* Tote Labels: graphite tote walls, yellow lids, white thermal labels. */
+/* Tote-ally Labeled: graphite tote walls, yellow lids, white thermal labels. */
 
 :root {
   --bg: #eceeef;
@@ -442,7 +442,7 @@ dialog::backdrop { background: rgba(15, 17, 19, 0.55); }
 
 @media (max-width: 760px) {
   .topbar { padding: 10px 16px; }
-  .brand { font-size: 1.125rem; }
+  .brand { font-size: 1.125rem; white-space: normal; line-height: 1.1; }  /* the name wraps after "Tote-ally" on phones */
   .topbar-actions { gap: 8px; }
   .topbar .button-quiet { padding: 6px 12px; }
 
