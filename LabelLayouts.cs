@@ -28,6 +28,20 @@ public record LabelLayout(LabelSize Size, string Name, Box? Logo, TextBlock Titl
     // The printer can't print wider than its head, so wider labels
     // go through on a narrower roll turned sideways.
     public bool Sideways => WidthInches > LabelLayouts.MaxPrintWidthInches;
+
+    // Where a chosen icon goes: a square as tall as one title line at the start of the title, with the
+    // title moved over beside it and left-aligned so the two read together. On a label with the logo
+    // beside the title, the title already starts after the logo, so the icon sits between them.
+    public Box Icon => new(Title.X, Title.Y, Title.FontSize, Title.FontSize);
+
+    public TextBlock TitleBesideIcon => Title with
+    {
+        X = Title.X + Title.FontSize + IconGap,
+        Width = Title.Width - Title.FontSize - IconGap,
+        Align = "L"
+    };
+
+    int IconGap => (int)Math.Round(Title.FontSize * 0.2);
 }
 
 public record Box(int X, int Y, int Width, int Height);

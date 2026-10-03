@@ -3,7 +3,8 @@ using System.Text;
 
 namespace ToteLabels;
 
-public record PrintRequest(string LayoutId, string Title, string? Contents, int Copies);
+// IconPng is the chosen icon as a PNG data URL, drawn by the browser at the icon's printed size, or null for none.
+public record PrintRequest(string LayoutId, string Title, string? Contents, int Copies, string? IconPng = null);
 
 public static class ZplBuilder
 {
@@ -17,6 +18,10 @@ public static class ZplBuilder
         bool sideways = layout.Sideways;
         int length = S(sideways ? layout.WidthDots : layout.HeightDots);
         int offset = (int)Math.Round(settings.TopOffsetMm / 25.4 * settings.Dpi);
+
+        using var logoImage = layout.Logo is not null && logoPath is not null ? new Bitmap(logoPath) : null;
+        using var iconImage = string.IsNullOrEmpty(request.IconPng) ? null : FromDataUrl(request.IconPng);
+        var title = iconImage is null ? layout.Title : layout.TitleBesideIcon;
 
         // The offset moves the fields down the label rather than using the printer's own label top (^LT):
         // ^LT makes the printer feed further than the label, which builds up until it skips a label,
@@ -43,7 +48,7 @@ public static class ZplBuilder
         // Builds the fields at the given size (1 is full size), moved down the label by shift dots,
         // and reports the highest and lowest printer rows they reach. Shrinking pulls everything toward
         // the top edge as the label feeds and keeps it centred across the head, so text wraps the same
-        // way at any size. Measuring (draw: false) skips the slow logo conversion.
+        // way at any size. Measuring (draw: false) skips the slow image conversion.
         (string Zpl, int Top, int Lowest) Fields(double fit, int shift, bool draw)
         {
             int topRow = int.MaxValue, lowestRow = 0;
@@ -74,15 +79,20 @@ public static class ZplBuilder
 
             var fields = new StringBuilder();
 
-            if (layout.Logo is { } logo && logoPath is not null)
+            void Image(Bitmap image, Box at)
             {
-                var box = Place(logo.X, logo.Y, logo.Width, logo.Height);
+                var box = Place(at.X, at.Y, at.Width, at.Height);
                 var (across, down) = sideways ? (box.H, box.W) : (box.W, box.H);
                 if (draw)
-                    fields.AppendLine(Graphic(logoPath, box.X, box.Y, across, down, sideways));
+                    fields.AppendLine(Graphic(image, box.X, box.Y, across, down, sideways));
             }
 
-            fields.AppendLine(Text(layout.Title, [Clean(request.Title)]));
+            if (layout.Logo is { } logo && logoImage is not null)
+                Image(logoImage, logo);
+            if (iconImage is not null)
+                Image(iconImage, layout.Icon);
+
+            fields.AppendLine(Text(title, [Clean(request.Title)]));
 
             if (layout.Divider is { } rule)
             {
@@ -100,9 +110,8 @@ public static class ZplBuilder
 
     // Converts an image to a 1-bit ZPL graphic, scaled to fit and centered in the given printer box.
     // On a sideways label the box is already turned, and the image is turned a quarter turn to match the text.
-    static string Graphic(string path, int x, int y, int boxWidth, int boxHeight, bool sideways)
+    static string Graphic(Bitmap source, int x, int y, int boxWidth, int boxHeight, bool sideways)
     {
-        using var source = new Bitmap(path);
         int maxWidth = sideways ? boxHeight : boxWidth;    // the box as the label reads
         int maxHeight = sideways ? boxWidth : boxHeight;
         double fit = Math.Min((double)maxWidth / source.Width, (double)maxHeight / source.Height);
@@ -135,6 +144,16 @@ public static class ZplBuilder
 
         int totalBytes = bytesPerRow * height;
         return $"^FO{left},{top}^GFA,{totalBytes},{totalBytes},{bytesPerRow},{hex}^FS";
+    }
+
+    // "data:image/png;base64,iVBOR..." to a Bitmap. Throws FormatException or ArgumentException if it isn't an image.
+    static Bitmap FromDataUrl(string dataUrl)
+    {
+        if (!dataUrl.StartsWith("data:image/png;base64,", StringComparison.Ordinal))
+            throw new FormatException("Not a PNG data URL.");
+        using var stream = new MemoryStream(Convert.FromBase64String(dataUrl[(dataUrl.IndexOf(',') + 1)..]));
+        using var decoded = new Bitmap(stream);
+        return new Bitmap(decoded);  // a copy, so it no longer needs the stream
     }
 
     // Transparent and light pixels stay white; everything else prints black.

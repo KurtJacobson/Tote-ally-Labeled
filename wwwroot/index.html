@@ -30,7 +30,13 @@
 
       <div class="field">
         <label class="field-label" for="title">Title</label>
-        <input id="title" class="title-input" spellcheck="true" autocomplete="off" placeholder="Holiday decorations">
+        <div class="title-row">
+          <button type="button" id="icon-button" class="icon-button" aria-haspopup="dialog" aria-label="Add an icon">
+            <span id="icon-button-art" class="icon-art" aria-hidden="true"></span>
+            <span id="icon-button-text">Icon</span>
+          </button>
+          <input id="title" class="title-input" spellcheck="true" autocomplete="off" placeholder="Holiday decorations">
+        </div>
       </div>
 
       <div class="field contents-field">
@@ -56,6 +62,7 @@
     <section class="bench" aria-label="Label preview">
       <div id="label" class="label">
         <img id="preview-logo" class="label-logo" alt="" hidden>
+        <div id="preview-icon" class="label-icon" hidden></div>
         <div id="preview-title" class="label-text"></div>
         <div id="preview-divider" class="label-rule"></div>
         <div id="preview-contents" class="label-text"></div>
@@ -63,6 +70,41 @@
       <p id="size-caption" class="bench-caption"></p>
     </section>
   </main>
+
+  <dialog id="icon-picker" class="picker" aria-labelledby="picker-title">
+    <div class="dialog-head">
+      <h2 id="picker-title">Choose an icon</h2>
+      <button type="button" id="close-picker" class="button-quiet">Close</button>
+    </div>
+
+    <div class="picker-controls">
+      <input id="icon-search" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search icons, like tree, tools or battery" aria-label="Search icons">
+      <div class="picker-filters">
+        <select id="icon-category" aria-label="Category">
+          <option value="">All categories</option>
+        </select>
+        <label class="check"><input type="checkbox" id="icon-solid"> Solid only</label>
+      </div>
+    </div>
+
+    <div class="picker-body">
+      <section id="recent-section" hidden>
+        <h3 class="picker-heading">Recently used</h3>
+        <div id="recent-grid" class="icon-grid"></div>
+      </section>
+      <section>
+        <h3 class="picker-heading" id="results-heading">All icons</h3>
+        <div id="icon-grid" class="icon-grid"></div>
+        <p id="results-note" class="hint picker-note"></p>
+      </section>
+    </div>
+
+    <div class="dialog-foot">
+      <p class="hint picker-credit">Icons by <a href="https://tabler.io/icons" target="_blank" rel="noopener">Tabler</a>, MIT license.</p>
+      <button type="button" id="remove-icon" class="button-quiet">No icon</button>
+    </div>
+  </dialog>
 
   <dialog id="size-editor" class="wide" aria-labelledby="size-editor-title">
     <div class="size-editor">

@@ -218,6 +218,45 @@ textarea {
   resize: vertical;
 }
 
+.title-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Square button left of the title: shows the chosen icon, or "Icon" when there is none. */
+.icon-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 56px;
+  background: var(--field);
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.icon-button:hover { border-color: var(--muted); }
+
+.icon-button.has-icon {
+  border-style: solid;
+  color: var(--ink);
+}
+
+.icon-button .icon-art {
+  width: 30px;
+  height: 30px;
+}
+
+.icon-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* The contents box takes whatever height the window has left, so the page itself never scrolls. */
 .contents-field {
   display: flex;
@@ -333,6 +372,17 @@ select option { background: var(--surface); color: var(--ink); }
 .label-text.empty { color: #a3a8ad; }
 
 .label.round { border-radius: 50%; }
+
+.label-icon {
+  position: absolute;
+  color: #000000;
+}
+
+.label-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 
 .label.invalid { opacity: 0.35; }
 
@@ -452,6 +502,95 @@ dialog::backdrop { background: rgba(15, 17, 19, 0.55); }
   max-width: 90%;
   max-height: 72px;
 }
+
+/* Icon picker: search and filters at the top, the icons scroll, the credit and No icon stay at the bottom */
+
+dialog.picker {
+  width: min(760px, calc(100vw - 32px));
+  height: min(720px, calc(100vh - 32px));
+}
+
+dialog.picker[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.picker-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.picker-controls input[type="search"] { font-size: 1.0625rem; }
+
+.picker-filters {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.picker-filters select { width: auto; }
+
+.picker-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 24px 20px;
+}
+
+.picker-heading {
+  margin: 14px 0 8px;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+
+.icon-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.icon-choice:hover { background: var(--field); border-color: var(--line); }
+
+.icon-choice[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--field);
+}
+
+.icon-choice .icon-art {
+  width: 32px;
+  height: 32px;
+}
+
+.icon-choice .icon-name {
+  width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-note:empty { display: none; }
+.picker-note { margin: 14px 0 0; }
+
+.picker-credit { margin: 0; }
+.picker-credit a { color: inherit; }
 
 /* Label size editor: the sizes down the left, the selected one's settings and preview on the right */
 

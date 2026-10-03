@@ -17,11 +17,13 @@ if (!firstInstance)
 // The page is served from the app's own folder, wherever it was started from.
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory });
 builder.WebHost.UseUrls($"http://*:{Port}");  // also reachable from other devices on your network
+builder.Services.AddResponseCompression();  // shrinks the 2 MB icon list to about 400 KB for phones
 
 var app = builder.Build();
 string dataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToteLabels");
 var data = new AppData(dataFolder);
 
+app.UseResponseCompression();
 app.UseDefaultFiles();  // serves wwwroot/index.html at /
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -119,7 +121,18 @@ app.MapPost("/api/print", async (PrintRequest request) =>
 
     var settings = data.LoadSettings();
     var label = request with { Copies = Math.Clamp(request.Copies, 1, 99) };
-    string zpl = ZplBuilder.Label(layout, label, settings, data.HasLogo ? data.LogoPath : null);
+    if (request.IconPng?.Length > 2_000_000)
+        return Results.Text("The icon image is too large.", statusCode: 400);
+
+    string zpl;
+    try
+    {
+        zpl = ZplBuilder.Label(layout, label, settings, data.HasLogo ? data.LogoPath : null);
+    }
+    catch (Exception ex) when (ex is FormatException or ArgumentException)
+    {
+        return Results.Text("The icon couldn't be read. Choose it again and retry.", statusCode: 400);
+    }
 
     return await SendToPrinter(settings.PrinterIp, zpl);
 });

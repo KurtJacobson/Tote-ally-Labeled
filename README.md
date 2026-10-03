@@ -15,6 +15,12 @@ centred contents. The layout is worked out from the size (`LabelLayouts.cs`), an
 shows exactly what will print. A size wider than the printer's 4.09 in head prints sideways on a narrower
 roll.
 
+## Icons
+
+The button left of the title opens an icon picker. The chosen icon prints beside the title on every size.
+The icons are [Tabler Icons](https://tabler.io/icons) (MIT license, `wwwroot/icons-LICENSE.txt`), stored
+in `wwwroot/icons.json`. The browser draws the chosen icon at its printed size and sends it with the label.
+
 ## Build and run
 
 ```

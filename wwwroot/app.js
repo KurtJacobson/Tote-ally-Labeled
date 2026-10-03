@@ -4,7 +4,10 @@ const state = {
   layouts: [],
   layout: null,
   hasLogo: false,
-  printerIp: ""
+  printerIp: "",
+  dpi: 203,
+  icons: [],      // loaded the first time the icon picker opens
+  icon: null      // the chosen icon: { icon, style } where style is "outline" or "solid"
 };
 
 // Shown in the preview until the user types something.
@@ -101,6 +104,7 @@ function applyLayouts(layouts) {
 // always has room for, and leaving it uncapped is what lets the panel grow to the label's height.
 const mainView = {
   fluid: true,
+  icon: $("preview-icon"),
   label: $("label"), logo: $("preview-logo"), title: $("preview-title"),
   divider: $("preview-divider"), contents: $("preview-contents")
 };
@@ -146,8 +150,14 @@ function arrangeLabel(view, layout, maxWidth, maxHeight) {
   view.label.style.aspectRatio = `${layout.widthDots} / ${layout.heightDots}`;
   view.label.classList.toggle("round", layout.round);
 
-  placeText(view.title, layout.title, layout);
+  // With an icon chosen, the main preview moves the title over beside it, as the printer will.
+  const withIcon = view.icon && state.icon;
+  placeText(view.title, withIcon ? layout.titleBesideIcon : layout.title, layout);
   placeText(view.contents, layout.contents, layout);
+  if (view.icon) {
+    place(view.icon, withIcon && layout.icon, layout);
+    view.icon.innerHTML = withIcon ? iconSvg(state.icon.icon, state.icon.style) : "";
+  }
 
   const rule = layout.divider;
   place(view.divider, rule && { x: rule.x, y: rule.y, width: rule.width, height: rule.thickness }, layout);
@@ -421,7 +431,8 @@ async function printLabel() {
       layoutId: state.layout.id,
       title,
       contents: $("contents").value.trimEnd(),
-      copies
+      copies,
+      iconPng: state.icon ? await renderIconPng() : null
     });
     showStatus(status, copies === 1 ? "Sent 1 label to the printer." : `Sent ${copies} labels to the printer.`, "ok");
   } catch (error) {
@@ -480,6 +491,7 @@ async function saveSettings(event) {
   try {
     await sendJson("/api/settings", { printerIp, dpi, topOffsetMm }, "PUT");
     state.printerIp = printerIp;
+    state.dpi = dpi;
     $("settings").close();
     checkPrinter();
   } catch (error) {
@@ -554,6 +566,171 @@ async function removeLogo() {
   }
 }
 
+// ---------- Icons ----------
+// icons.json holds every icon's name, category, search tags and SVG shapes (Tabler Icons, MIT license).
+// It is loaded the first time the picker opens. The icon and its file come with the app, so their
+// SVG is trusted; nothing typed by the user is ever set as HTML.
+
+const MAX_RESULTS = 240;      // drawing thousands of icons at once makes the picker sluggish
+const MAX_RECENT = 16;
+const OUTLINE_WIDTH = 2.25;   // a little heavier than Tabler's default so thin lines print solidly
+
+const iconLabel = icon => icon.name.replaceAll("-", " ");
+
+function iconSvg(icon, style) {
+  const paint = style === "solid"
+    ? 'fill="currentColor" stroke="none"'
+    : `fill="none" stroke="currentColor" stroke-width="${OUTLINE_WIDTH}" stroke-linecap="round" stroke-linejoin="round"`;
+  const shapes = style === "solid" ? icon.solid : icon.outline;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ${paint}>${shapes}</svg>`;
+}
+
+async function loadIcons() {
+  if (state.icons.length) return;
+
+  $("results-note").textContent = "Loading icons…";
+  state.icons = await api("/icons.json");
+
+  for (const icon of state.icons) {
+    icon.searchWords = `${iconLabel(icon)} ${icon.tags} ${icon.category}`.toLowerCase().split(/\s+/);
+  }
+
+  const categories = [...new Set(state.icons.map(icon => icon.category))].sort();
+  for (const category of categories) {
+    $("icon-category").add(new Option(category, category));
+  }
+}
+
+async function openIconPicker() {
+  $("icon-picker").showModal();
+  $("icon-search").focus();
+  try {
+    await loadIcons();
+    showIcons();
+  } catch (error) {
+    $("results-note").textContent = error.message;
+  }
+}
+
+function currentMatches() {
+  const words = $("icon-search").value.toLowerCase().split(/\s+/).filter(Boolean);
+  const category = $("icon-category").value;
+  const solidOnly = $("icon-solid").checked;
+
+  // Each search word must be the start of one of the icon's words, so "tree" finds
+  // "christmas tree" but not "street".
+  const matchesWord = (iconWords, word) => iconWords.some(iconWord => iconWord.startsWith(word));
+
+  const matches = state.icons.filter(icon =>
+    (!category || icon.category === category) &&
+    (!solidOnly || icon.solid) &&
+    words.every(word => matchesWord(icon.searchWords, word)));
+
+  // Icons whose name matches the search come before ones that only match a tag.
+  const nameHits = icon => words.filter(word => matchesWord(icon.name.split("-"), word)).length;
+  return words.length ? matches.sort((a, b) => nameHits(b) - nameHits(a)) : matches;
+}
+
+function showIcons() {
+  const style = $("icon-solid").checked ? "solid" : "outline";
+  const matches = currentMatches();
+  const browsing = !$("icon-search").value.trim() && !$("icon-category").value;
+
+  $("icon-grid").replaceChildren(...matches.slice(0, MAX_RESULTS).map(icon => iconChoice(icon, style)));
+  $("results-heading").textContent = browsing ? "All icons" : `Results (${matches.length})`;
+  $("results-note").textContent =
+    matches.length === 0 ? "No icons match. Try a simpler word, like box, tool or tree." :
+    matches.length > MAX_RESULTS ? `Showing ${MAX_RESULTS} of ${matches.length}. Search or pick a category to narrow it down.` :
+    "";
+
+  const recent = browsing ? recentIcons() : [];
+  $("recent-section").hidden = recent.length === 0;
+  $("recent-grid").replaceChildren(...recent.map(({ icon, style }) => iconChoice(icon, style)));
+}
+
+function iconChoice(icon, style) {
+  const selected = state.icon?.icon === icon && state.icon.style === style;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "icon-choice";
+  button.title = iconLabel(icon);
+  button.setAttribute("aria-pressed", selected);
+
+  const art = document.createElement("span");
+  art.className = "icon-art";
+  art.setAttribute("aria-hidden", "true");
+  art.innerHTML = iconSvg(icon, style);
+  const name = document.createElement("span");
+  name.className = "icon-name";
+  name.textContent = iconLabel(icon);
+
+  button.append(art, name);
+  button.addEventListener("click", () => chooseIcon({ icon, style }));
+  return button;
+}
+
+function chooseIcon(choice) {
+  state.icon = choice;
+  if (choice) rememberIcon(choice);
+
+  $("icon-picker").close();
+  updateIconButton();
+  arrangePreview();
+  updatePreview();
+  $("title").focus();
+}
+
+function updateIconButton() {
+  const button = $("icon-button");
+  button.classList.toggle("has-icon", !!state.icon);
+  $("icon-button-art").innerHTML = state.icon ? iconSvg(state.icon.icon, state.icon.style) : "";
+  $("icon-button-text").textContent = state.icon ? "" : "Icon";
+  button.setAttribute("aria-label", state.icon ? `Icon: ${iconLabel(state.icon.icon)}. Change icon` : "Add an icon");
+}
+
+// Recently used icons are remembered per browser.
+function recentIcons() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("toteLabels.recentIcons")) ?? [];
+    return saved
+      .map(({ name, style }) => ({ icon: state.icons.find(icon => icon.name === name), style }))
+      .filter(choice => choice.icon);
+  } catch {
+    return [];
+  }
+}
+
+function rememberIcon({ icon, style }) {
+  try {
+    const saved = (JSON.parse(localStorage.getItem("toteLabels.recentIcons")) ?? [])
+      .filter(item => !(item.name === icon.name && item.style === style));
+    saved.unshift({ name: icon.name, style });
+    localStorage.setItem("toteLabels.recentIcons", JSON.stringify(saved.slice(0, MAX_RECENT)));
+  } catch { }
+}
+
+// Draws the chosen icon at its printed size, in black on white, for the printer. The server
+// turns it with the text on a sideways label and shrinks it with the rest when the offset needs room.
+async function renderIconPng() {
+  const box = state.layout.icon;
+  const width = Math.round(box.width * state.dpi / 203);
+  const height = Math.round(box.height * state.dpi / 203);
+
+  const svg = iconSvg(state.icon.icon, state.icon.style).replaceAll("currentColor", "#000");
+  const image = new Image();
+  image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  await image.decode();
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/png");
+}
+
 // ---------- Wiring ----------
 
 $("size").addEventListener("change", event => selectLayout(event.target.value));
@@ -582,6 +759,21 @@ $("open-settings").addEventListener("click", openSettings);
 $("close-settings").addEventListener("click", () => $("settings").close());
 $("settings-form").addEventListener("submit", saveSettings);
 
+$("icon-button").addEventListener("click", openIconPicker);
+$("close-picker").addEventListener("click", () => $("icon-picker").close());
+$("remove-icon").addEventListener("click", () => chooseIcon(null));
+$("icon-search").addEventListener("input", showIcons);
+$("icon-category").addEventListener("change", showIcons);
+$("icon-solid").addEventListener("change", showIcons);
+
+// Enter in the search box picks the first result.
+$("icon-search").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    $("icon-grid").querySelector("button")?.click();
+  }
+});
+
 $("edit-sizes").addEventListener("click", openSizeEditor);
 $("close-size-editor").addEventListener("click", closeSizeEditor);
 $("size-editor").addEventListener("cancel", event => {  // Esc
@@ -608,6 +800,7 @@ async function init() {
     const [layouts, settings] = await Promise.all([api("/api/layouts"), api("/api/settings")]);
     state.layouts = layouts;
     state.printerIp = settings.printerIp;
+    state.dpi = settings.dpi;
 
     renderSizePicker();
     selectLayout(rememberedSize());
