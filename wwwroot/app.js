@@ -661,7 +661,7 @@ function showIcons() {
   $("results-note").textContent = sections.length ? "" :
     $("icon-category").value === MY_ICONS && !state.myIcons.length
       ? "You haven't uploaded any icons yet. Use Upload icon below to add one."
-      : "No icons match. Try another word, or upload your own icon.";
+      : "No icons match. Try another word, or add your own: upload one, or copy an image or SVG and press Ctrl+V.";
 }
 
 function iconSection(heading, icons) {
@@ -840,6 +840,42 @@ async function removeMyIcon(icon) {
     showStatus($("my-icons-status"), error.message, "error");
   }
 }
+
+// ---------- Pasting icons ----------
+// With the picker or Settings open, Ctrl+V adds the icon on the clipboard: an image (copied from a web page,
+// or a screenshot) or SVG code (an icon site's "Copy SVG"). Any other text pastes as normal.
+
+function pastedIcon(clipboard) {
+  const image = [...clipboard.items].find(item => item.kind === "file" && item.type.startsWith("image/"));
+  if (image) return image.getAsFile();
+
+  let text = clipboard.getData("text/plain").trim();
+  if (!text.startsWith("<") || !/<svg[\s>]/i.test(text) || !/<\/svg>$/i.test(text)) return null;
+
+  // An SVG only draws as an image with its namespace, which copied code sometimes leaves out.
+  if (!/<svg[^>]*\sxmlns=/i.test(text)) text = text.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+  return new Blob([text], { type: "image/svg+xml" });
+}
+
+document.addEventListener("paste", async event => {
+  const inPicker = $("icon-picker").open;
+  if (!inPicker && !$("settings").open) return;
+
+  const icon = pastedIcon(event.clipboardData);
+  if (!icon) return;
+  event.preventDefault();
+
+  // A pasted icon has no file name, so it is named after the search, which is usually what it was looked for as.
+  const name = (inPicker && $("icon-search").value.trim()) || "Pasted icon";
+  const file = new File([icon], `${name}.png`, { type: icon.type });
+
+  if (inPicker) {
+    const added = await uploadIcon(file, $("results-note"));
+    if (added) chooseIcon(added);
+  } else if (await uploadIcon(file, $("my-icons-status"))) {
+    showMyIconsInSettings();
+  }
+});
 
 // ---------- Wiring ----------
 
