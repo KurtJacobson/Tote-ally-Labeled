@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.ComponentModel;
 using System.Net.Sockets;
 using System.Reflection;
 using ToteLabels;
@@ -80,8 +81,10 @@ app.MapPut("/api/settings", (AppSettings settings) =>
         return Results.Text("Resolution must be 203 or 300 dpi.", statusCode: 400);
     if (settings.TopOffsetMm is < -10 or > 10)
         return Results.Text("Top offset must be between -10 and 10 mm.", statusCode: 400);
+    if (settings.Connection is not ("network" or "usb"))
+        return Results.Text("Connection must be network or USB.", statusCode: 400);
 
-    data.SaveSettings(settings with { PrinterIp = settings.PrinterIp?.Trim() ?? "" });
+    data.SaveSettings(settings with { PrinterIp = settings.PrinterIp?.Trim() ?? "", PrinterName = settings.PrinterName ?? "" });
     return Results.Ok();
 });
 
@@ -166,13 +169,19 @@ app.MapPost("/api/print", async (PrintRequest request) =>
         return Results.Text("The icon couldn't be read. Choose it again and retry.", statusCode: 400);
     }
 
-    return await SendToPrinter(settings.PrinterIp, zpl);
+    return await SendToPrinter(settings.Target, zpl);
 });
 
-// Both accept an optional ?ip= so Settings can test an address before saving it.
-// Sending nothing just opens and closes a connection, which checks the printer is reachable.
-app.MapPost("/api/printer/check", (string? ip) => SendToPrinter(ip ?? data.LoadSettings().PrinterIp, ""));
-app.MapPost("/api/printer/calibrate", (string? ip) => SendToPrinter(ip ?? data.LoadSettings().PrinterIp, "~JC"));
+// The printers installed in Windows, for choosing a USB printer in Settings.
+app.MapGet("/api/printers", () => WindowsPrinter.List());
+
+// Both accept the connection, ?ip= and ?name= so Settings can try a printer before saving it;
+// without them they use the saved printer.
+PrinterTarget Target(string? connection, string? ip, string? name) =>
+    connection is null ? data.LoadSettings().Target : new PrinterTarget(connection, ip ?? "", name ?? "");
+
+app.MapPost("/api/printer/check", (string? connection, string? ip, string? name) => CheckPrinter(Target(connection, ip, name)));
+app.MapPost("/api/printer/calibrate", (string? connection, string? ip, string? name) => SendToPrinter(Target(connection, ip, name), "~JC"));
 
 try
 {
@@ -198,18 +207,61 @@ window.Join();
 
 await app.StopAsync();
 
-static async Task<IResult> SendToPrinter(string ip, string zpl)
+// A network printer is checked by connecting to it. A USB printer is checked by asking Windows whether it is
+// installed and online: Windows marks a USB printer offline when it is unplugged or switched off.
+static async Task<IResult> CheckPrinter(PrinterTarget target)
 {
-    if (string.IsNullOrWhiteSpace(ip))
+    if (!target.Usb)
+        return await SendToPrinter(target, "");
+
+    if (string.IsNullOrWhiteSpace(target.Name))
+        return Results.Text("Choose the USB printer in Settings first.", statusCode: 400);
+
+    return WindowsPrinter.IsOnline(target.Name) switch
+    {
+        null => Results.Text($"There's no printer called {target.Name} on this PC. Choose it again in Settings.", statusCode: 502),
+        false => Results.Text($"{target.Name} is offline. Check that it's plugged in and switched on.", statusCode: 502),
+        true => Results.Ok()
+    };
+}
+
+static async Task<IResult> SendToPrinter(PrinterTarget target, string zpl)
+{
+    if (target.Usb)
+    {
+        if (string.IsNullOrWhiteSpace(target.Name))
+            return Results.Text("Choose the USB printer in Settings first.", statusCode: 400);
+
+        // Windows accepts a job for an unplugged printer and holds it until the printer comes back, which would
+        // report a label as sent that hasn't printed. So an offline printer is turned away instead.
+        if (WindowsPrinter.IsOnline(target.Name) is not { } online)
+            return Results.Text($"There's no printer called {target.Name} on this PC. Choose it again in Settings.", statusCode: 502);
+        if (!online)
+            return Results.Text($"{target.Name} is offline. Check that it's plugged in and switched on.", statusCode: 502);
+
+        try
+        {
+            await PrinterClient.SendAsync(target, zpl);
+            return Results.Ok();
+        }
+        catch (Win32Exception)
+        {
+            return WindowsPrinter.IsOnline(target.Name) is null
+                ? Results.Text($"There's no printer called {target.Name} on this PC. Choose it again in Settings.", statusCode: 502)
+                : Results.Text($"Couldn't print to {target.Name}. Check that it's plugged in and switched on.", statusCode: 502);
+        }
+    }
+
+    if (string.IsNullOrWhiteSpace(target.Ip))
         return Results.Text("Add the printer's IP address in Settings first.", statusCode: 400);
 
     try
     {
-        await PrinterClient.SendAsync(ip, zpl);
+        await PrinterClient.SendAsync(target, zpl);
         return Results.Ok();
     }
     catch (Exception ex) when (ex is SocketException or OperationCanceledException)
     {
-        return Results.Text($"Couldn't reach the printer at {ip}. Check that it's on and the IP address is right.", statusCode: 502);
+        return Results.Text($"Couldn't reach the printer at {target.Ip}. Check that it's on and the IP address is right.", statusCode: 502);
     }
 }

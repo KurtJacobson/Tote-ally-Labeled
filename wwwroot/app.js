@@ -5,6 +5,8 @@ const state = {
   layout: null,
   hasLogo: false,
   printerIp: "",
+  connection: "network",  // "network" or "usb"
+  printerName: "",        // the Windows printer used over USB
   dpi: 203,
   icons: [],      // built-in icons, loaded the first time the icon picker opens
   myIcons: [],    // icons you uploaded
@@ -449,7 +451,7 @@ async function checkPrinter() {
     $("printer-status").dataset.kind = kind;
   };
 
-  if (!state.printerIp) {
+  if (!(state.connection === "usb" ? state.printerName : state.printerIp)) {
     show("Not set up", "error");
     return;
   }
@@ -469,6 +471,9 @@ async function openSettings() {
   try {
     const settings = await api("/api/settings");
     $("printer-ip").value = settings.printerIp;
+    checkRadio("connection", settings.connection);
+    showConnectionFields();
+    loadPrinters(settings.printerName);
     document.querySelector(`input[name="dpi"][value="${settings.dpi}"]`).checked = true;
     $("top-offset").value = settings.topOffsetMm;
   } catch (error) {
@@ -487,12 +492,16 @@ async function saveSettings(event) {
   event.preventDefault();
 
   const printerIp = $("printer-ip").value.trim();
+  const connection = radioValue("connection");
+  const printerName = $("printer-name").value;
   const dpi = Number(document.querySelector('input[name="dpi"]:checked').value);
   const topOffsetMm = Number($("top-offset").value) || 0;
 
   try {
-    await sendJson("/api/settings", { printerIp, dpi, topOffsetMm }, "PUT");
+    await sendJson("/api/settings", { printerIp, dpi, topOffsetMm, connection, printerName }, "PUT");
     state.printerIp = printerIp;
+    state.connection = connection;
+    state.printerName = printerName;
     state.dpi = dpi;
     $("settings").close();
     checkPrinter();
@@ -501,19 +510,54 @@ async function saveSettings(event) {
   }
 }
 
-// Test and Calibrate use the address in the box, so it can be tried before saving.
+// Network shows the IP address box; USB shows the list of Windows printers in its place.
+function showConnectionFields() {
+  const usb = radioValue("connection") === "usb";
+  $("network-help").hidden = usb;
+  $("printer-ip").hidden = usb;
+  $("usb-help").hidden = !usb;
+  $("printer-name").hidden = !usb;
+}
+
+// Fills the USB printer list from Windows, likely Zebras first, keeping the chosen one.
+async function loadPrinters(selected) {
+  const list = $("printer-name");
+  selected ??= list.value;
+  let printers = [];
+  try {
+    printers = await api("/api/printers");
+  } catch (error) {
+    showStatus($("test-status"), error.message, "error");
+  }
+
+  const options = printers.map(printer =>
+    new Option(`${printer.name} (${printer.port})${printer.online ? "" : ", offline"}`, printer.name));
+  if (selected && !printers.some(printer => printer.name === selected)) {
+    options.unshift(new Option(`${selected} (not found on this PC)`, selected));
+  }
+  if (options.length === 0) {
+    options.push(new Option("No printers are installed in Windows", ""));
+  }
+  list.replaceChildren(...options);
+  list.value = selected || (printers[0]?.name ?? "");
+}
+
+// Test and Calibrate use the printer chosen in the dialog, so it can be tried before saving.
 async function sendPrinterCommand(path, statusId, successMessage) {
+  const connection = radioValue("connection");
   const ip = $("printer-ip").value.trim();
+  const name = $("printer-name").value;
   const status = $(statusId);
 
-  if (!ip) {
-    showStatus(status, "Enter the printer's IP address first.", "error");
+  if (connection === "usb" ? !name : !ip) {
+    showStatus(status, connection === "usb" ? "Choose the USB printer first." : "Enter the printer's IP address first.", "error");
     return;
   }
 
   showStatus(status, "Contacting the printer…");
   try {
-    await api(`${path}?ip=${encodeURIComponent(ip)}`, { method: "POST" });
+    const query = new URLSearchParams({ connection, ip, name });
+    await api(`${path}?${query}`, { method: "POST" });
     showStatus(status, successMessage, "ok");
   } catch (error) {
     showStatus(status, error.message, "error");
@@ -973,6 +1017,13 @@ $("size-form").addEventListener("submit", saveSizes);
 $("add-size").addEventListener("click", addSize);
 $("remove-size").addEventListener("click", removeSize);
 
+for (const radio of document.querySelectorAll('input[name="connection"]')) {
+  radio.addEventListener("change", () => {
+    showConnectionFields();
+    showStatus($("test-status"), "");
+  });
+}
+
 $("test-printer").addEventListener("click", () =>
   sendPrinterCommand("/api/printer/check", "test-status", "Connected to the printer."));
 $("calibrate").addEventListener("click", () =>
@@ -988,6 +1039,8 @@ async function init() {
     const [layouts, settings] = await Promise.all([api("/api/layouts"), api("/api/settings")]);
     state.layouts = layouts;
     state.printerIp = settings.printerIp;
+    state.connection = settings.connection;
+    state.printerName = settings.printerName;
     state.dpi = settings.dpi;
 
     renderSizePicker();

@@ -203,10 +203,24 @@
 
       <div class="dialog-body">
         <div class="setting">
-          <label class="field-label" for="printer-ip">Printer IP address</label>
-          <p class="hint">To find it, print a network configuration label from the printer's menu.</p>
+          <p class="field-label" id="connection-label">Printer connection</p>
+          <div class="radio-row connection-row" role="radiogroup" aria-labelledby="connection-label">
+            <label><input type="radio" name="connection" value="network"> Network</label>
+            <label><input type="radio" name="connection" value="usb"> USB</label>
+          </div>
+
+          <div id="network-help">
+            <label class="field-label" for="printer-ip">Printer IP address</label>
+            <p class="hint">To find it, print a network configuration label from the printer's menu.</p>
+          </div>
+          <div id="usb-help" hidden>
+            <label class="field-label" for="printer-name">Printer</label>
+            <p class="hint">The printer as installed in Windows with Zebra's driver. Labels go to it as ZPL, so the driver's settings don't change them. Phones print through this PC, so the app must be open here.</p>
+          </div>
+
           <div class="inline-row">
             <input id="printer-ip" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.50">
+            <select id="printer-name" hidden></select>
             <button type="button" id="test-printer" class="button-quiet">Test</button>
           </div>
           <p id="test-status" class="status" role="status"></p>

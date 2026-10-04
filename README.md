@@ -18,8 +18,9 @@ and print. Works with any label size, including round labels, and from a phone o
 3. Leave **Allow phones and other computers on this network** ticked if you want to print from a phone.
    It opens TCP port 5050 in Windows Firewall for your local network only.
 4. Open Tote-ally Labeled, then **Settings**:
-   - **Printer IP address**: print a network configuration label from the printer's menu to find it, and
-     use **Test** to check the connection.
+   - **Printer connection**: **Network**, with the printer's IP address (print a network configuration label
+     from the printer's menu to find it), or **USB**, choosing the printer as installed in Windows. Use **Test**
+     to check the connection.
    - **Print resolution**: 203 or 300 dpi, from the sticker under the printer.
    - **Calibrate printer** after loading a new roll.
 
@@ -30,7 +31,9 @@ Installing a new version keeps your settings, label sizes, logo and icons.
 
 ## Printer compatibility
 
-Tote-ally Labeled sends ZPL (Zebra Programming Language) to the printer over the network on TCP port 9100.
+Tote-ally Labeled sends ZPL (Zebra Programming Language) to the printer, either over the network on TCP port
+9100, or over USB through the printer's Windows driver. Over USB the labels are sent as raw ZPL, so the
+driver's own settings don't change them.
 
 | Printer | Works? |
 |---|---|
@@ -38,7 +41,7 @@ Tote-ally Labeled sends ZPL (Zebra Programming Language) to the printer over the
 | Other brands with ZPL emulation (some TSC, Godex, Honeywell, SATO) | Usually. Fonts, line wrapping and centring can differ from the preview, and Calibrate may do nothing. |
 | Printers that only speak TSPL, EPL, DPL, ESC/POS or CPCL | No |
 | Brother QL, DYMO and other driver-only printers | No |
-| USB-only printers | No. The printer must be on the network. |
+| USB printers | Yes, when the printer's Windows driver is installed (for a Zebra, the ZDesigner driver). Choose **USB** in Settings. |
 
 - Resolution: 203 or 300 dpi.
 - Labels up to 4.09 in (103.9 mm) wide, the print width of the ZD621. Wider labels, up to 12 in, print sideways

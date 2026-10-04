@@ -474,6 +474,10 @@ dialog::backdrop { background: rgba(15, 17, 19, 0.55); }
   gap: 10px;
 }
 
+.inline-row select { flex: 1; min-width: 0; }
+
+.connection-row { margin-bottom: 14px; }
+
 .radio-row {
   display: flex;
   gap: 24px;

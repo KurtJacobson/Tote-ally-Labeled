@@ -4,7 +4,11 @@ namespace ToteLabels;
 
 // TopOffsetMm moves everything down the label (or up, if negative) to correct
 // a printer that starts printing slightly off the top edge.
-public record AppSettings(string PrinterIp, int Dpi, double TopOffsetMm = 0);
+// Connection is "network" (the printer at PrinterIp) or "usb" (the Windows printer called PrinterName).
+public record AppSettings(string PrinterIp, int Dpi, double TopOffsetMm = 0, string Connection = "network", string PrinterName = "")
+{
+    public PrinterTarget Target => new(Connection, PrinterIp, PrinterName);
+}
 
 // Settings, label sizes, the logo and your own icons live in the folder given, %LOCALAPPDATA%\ToteLabels.
 public class AppData
