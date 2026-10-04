@@ -17,7 +17,7 @@ if (!firstInstance)
 // The page is served from the app's own folder, wherever it was started from.
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = AppContext.BaseDirectory });
 builder.WebHost.UseUrls($"http://*:{Port}");  // also reachable from other devices on your network
-builder.Services.AddResponseCompression();  // shrinks the 2 MB icon list to about 400 KB for phones
+builder.Services.AddResponseCompression();  // shrinks the icon list to about a third of its size for phones
 
 var app = builder.Build();
 string dataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToteLabels");
@@ -108,6 +108,38 @@ app.MapPut("/api/logo", async (HttpRequest request) =>
 app.MapDelete("/api/logo", () =>
 {
     File.Delete(data.LogoPath);
+    return Results.Ok();
+});
+
+// Your own icons. The browser converts uploads (including SVGs) to PNG before sending them.
+app.MapGet("/api/icons", () => data.IconNames());
+
+app.MapGet("/api/icons/{name}", (string name) =>
+    data.IconPath(name) is { } path && File.Exists(path) ? Results.File(path, "image/png") : Results.NotFound());
+
+app.MapPut("/api/icons", async (string name, HttpRequest request) =>
+{
+    using var buffer = new MemoryStream();
+    await request.Body.CopyToAsync(buffer);
+    buffer.Position = 0;
+
+    try
+    {
+        using var image = new Bitmap(buffer);
+        string savedName = data.UniqueIconName(name);
+        image.Save(data.IconPath(savedName)!, ImageFormat.Png);
+        return Results.Ok(new { name = savedName });
+    }
+    catch (ArgumentException)
+    {
+        return Results.Text("That file isn't an image this app can read. Try a PNG, JPG or SVG.", statusCode: 400);
+    }
+});
+
+app.MapDelete("/api/icons/{name}", (string name) =>
+{
+    if (data.IconPath(name) is { } path)
+        File.Delete(path);
     return Results.Ok();
 });
 

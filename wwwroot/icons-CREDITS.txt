@@ -1,0 +1,9 @@
+Tote Labels icon credits
+
+Material Design Icons by Pictogrammers (https://pictogrammers.com)
+License: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+
+Game Icons by Lorc, Delapouite and contributors (https://game-icons.net)
+License: Creative Commons Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/)
+
+The icons were selected and given storage-friendly names and search words for this app.

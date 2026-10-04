@@ -79,30 +79,30 @@
 
     <div class="picker-controls">
       <input id="icon-search" type="search" autocomplete="off" spellcheck="false"
-             placeholder="Search icons, like tree, tools or battery" aria-label="Search icons">
-      <div class="picker-filters">
-        <select id="icon-category" aria-label="Category">
-          <option value="">All categories</option>
-        </select>
-        <label class="check"><input type="checkbox" id="icon-solid"> Solid only</label>
-      </div>
+             placeholder="Search icons, like jars, screws or ornament" aria-label="Search icons">
+      <select id="icon-category" aria-label="Category">
+        <option value="">All categories</option>
+      </select>
     </div>
 
     <div class="picker-body">
-      <section id="recent-section" hidden>
-        <h3 class="picker-heading">Recently used</h3>
-        <div id="recent-grid" class="icon-grid"></div>
-      </section>
-      <section>
-        <h3 class="picker-heading" id="results-heading">All icons</h3>
-        <div id="icon-grid" class="icon-grid"></div>
-        <p id="results-note" class="hint picker-note"></p>
-      </section>
+      <div id="icon-results"></div>
+      <p id="results-note" class="hint picker-note" role="status"></p>
     </div>
 
     <div class="dialog-foot">
-      <p class="hint picker-credit">Icons by <a href="https://tabler.io/icons" target="_blank" rel="noopener">Tabler</a>, MIT license.</p>
-      <button type="button" id="remove-icon" class="button-quiet">No icon</button>
+      <p class="hint picker-credit">
+        Icons from <a href="https://pictogrammers.com" target="_blank" rel="noopener">Material Design Icons</a>
+        and <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a>
+        (Lorc, Delapouite and contributors, CC BY 3.0).
+      </p>
+      <div class="inline-row">
+        <label class="button-quiet file-button">
+          Upload icon
+          <input type="file" id="icon-upload" class="visually-hidden" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif">
+        </label>
+        <button type="button" id="remove-icon" class="button-quiet">No icon</button>
+      </div>
     </div>
   </dialog>
 
@@ -242,6 +242,18 @@
             <button type="button" id="remove-logo" class="button-quiet" hidden>Remove logo</button>
           </div>
           <p id="logo-status" class="status" role="status"></p>
+        </div>
+
+        <div class="setting">
+          <p class="field-label">My icons</p>
+          <p class="hint">Icons you upload appear under My icons in the picker. A simple black shape on a white or transparent background prints best.</p>
+          <ul id="my-icons-list" class="my-icons"></ul>
+          <p id="no-my-icons" class="hint">You haven't uploaded any icons yet.</p>
+          <label class="button-quiet file-button">
+            Upload icon
+            <input type="file" id="settings-icon-upload" class="visually-hidden" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif">
+          </label>
+          <p id="my-icons-status" class="status" role="status"></p>
         </div>
 
         <div class="setting">

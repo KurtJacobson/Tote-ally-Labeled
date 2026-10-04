@@ -6,8 +6,9 @@ const state = {
   hasLogo: false,
   printerIp: "",
   dpi: 203,
-  icons: [],      // loaded the first time the icon picker opens
-  icon: null      // the chosen icon: { icon, style } where style is "outline" or "solid"
+  icons: [],      // built-in icons, loaded the first time the icon picker opens
+  myIcons: [],    // icons you uploaded
+  icon: null      // the chosen icon
 };
 
 // Shown in the preview until the user types something.
@@ -156,7 +157,7 @@ function arrangeLabel(view, layout, maxWidth, maxHeight) {
   placeText(view.contents, layout.contents, layout);
   if (view.icon) {
     place(view.icon, withIcon && layout.icon, layout);
-    view.icon.innerHTML = withIcon ? iconSvg(state.icon.icon, state.icon.style) : "";
+    view.icon.innerHTML = withIcon ? iconArt(state.icon) : "";
   }
 
   const rule = layout.divider;
@@ -475,9 +476,10 @@ async function openSettings() {
     return;
   }
 
-  for (const id of ["test-status", "logo-status", "calibrate-status", "save-status"]) {
+  for (const id of ["test-status", "logo-status", "my-icons-status", "calibrate-status", "save-status"]) {
     showStatus($(id), "");
   }
+  showMyIconsInSettings();
   $("settings").showModal();
 }
 
@@ -567,45 +569,53 @@ async function removeLogo() {
 }
 
 // ---------- Icons ----------
-// icons.json holds every icon's name, category, search tags and SVG shapes (Tabler Icons, MIT license).
-// It is loaded the first time the picker opens. The icon and its file come with the app, so their
-// SVG is trusted; nothing typed by the user is ever set as HTML.
+// icons.json holds the built-in icons: label, category, search words and SVG shapes.
+// Your own icons are PNGs stored by the app and listed by /api/icons.
 
-const MAX_RESULTS = 240;      // drawing thousands of icons at once makes the picker sluggish
+const MY_ICONS = "My icons";
 const MAX_RECENT = 16;
-const OUTLINE_WIDTH = 2.25;   // a little heavier than Tabler's default so thin lines print solidly
 
-const iconLabel = icon => icon.name.replaceAll("-", " ");
+function iconArt(icon) {
+  return icon.src
+    ? `<img src="${icon.src}" alt="">`
+    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${icon.viewBox}" fill="currentColor">${icon.body}</svg>`;
+}
 
-function iconSvg(icon, style) {
-  const paint = style === "solid"
-    ? 'fill="currentColor" stroke="none"'
-    : `fill="none" stroke="currentColor" stroke-width="${OUTLINE_WIDTH}" stroke-linecap="round" stroke-linejoin="round"`;
-  const shapes = style === "solid" ? icon.solid : icon.outline;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ${paint}>${shapes}</svg>`;
+function addSearchWords(icon) {
+  icon.searchWords = `${icon.label} ${icon.tags} ${icon.category}`.toLowerCase().split(/\s+/);
+  return icon;
 }
 
 async function loadIcons() {
   if (state.icons.length) return;
 
   $("results-note").textContent = "Loading icons…";
-  state.icons = await api("/icons.json");
+  state.icons = (await api("/icons.json")).map(addSearchWords);
 
-  for (const icon of state.icons) {
-    icon.searchWords = `${iconLabel(icon)} ${icon.tags} ${icon.category}`.toLowerCase().split(/\s+/);
-  }
-
-  const categories = [...new Set(state.icons.map(icon => icon.category))].sort();
+  const categories = [...new Set(state.icons.map(icon => icon.category)), MY_ICONS];
   for (const category of categories) {
     $("icon-category").add(new Option(category, category));
   }
 }
 
+async function loadMyIcons() {
+  const names = (await api("/api/icons")) ?? [];
+  const version = Date.now();  // new URLs so a replaced icon isn't shown from the browser's cache
+  state.myIcons = names.map(name => addSearchWords({
+    id: `my:${name}`,
+    label: name,
+    category: MY_ICONS,
+    tags: "",
+    src: `/api/icons/${encodeURIComponent(name)}?v=${version}`
+  }));
+}
+
+const allIcons = () => [...state.icons, ...state.myIcons];
+
 async function openIconPicker() {
   $("icon-picker").showModal();
-  $("icon-search").focus();
   try {
-    await loadIcons();
+    await Promise.all([loadIcons(), loadMyIcons()]);
     showIcons();
   } catch (error) {
     $("results-note").textContent = error.message;
@@ -615,63 +625,74 @@ async function openIconPicker() {
 function currentMatches() {
   const words = $("icon-search").value.toLowerCase().split(/\s+/).filter(Boolean);
   const category = $("icon-category").value;
-  const solidOnly = $("icon-solid").checked;
 
-  // Each search word must be the start of one of the icon's words, so "tree" finds
-  // "christmas tree" but not "street".
+  // Each search word must be the start of one of the icon's words, so "jar" finds
+  // "mason jars" but not "pajamas".
   const matchesWord = (iconWords, word) => iconWords.some(iconWord => iconWord.startsWith(word));
 
-  const matches = state.icons.filter(icon =>
+  const matches = allIcons().filter(icon =>
     (!category || icon.category === category) &&
-    (!solidOnly || icon.solid) &&
     words.every(word => matchesWord(icon.searchWords, word)));
 
-  // Icons whose name matches the search come before ones that only match a tag.
-  const nameHits = icon => words.filter(word => matchesWord(icon.name.split("-"), word)).length;
+  // Icons whose name matches the search come before ones that only match a search word.
+  const nameHits = icon => words.filter(word => matchesWord(icon.label.toLowerCase().split(/\s+/), word)).length;
   return words.length ? matches.sort((a, b) => nameHits(b) - nameHits(a)) : matches;
 }
 
+// With no search or category, the picker shows every icon grouped by category.
 function showIcons() {
-  const style = $("icon-solid").checked ? "solid" : "outline";
-  const matches = currentMatches();
   const browsing = !$("icon-search").value.trim() && !$("icon-category").value;
+  const sections = [];
 
-  $("icon-grid").replaceChildren(...matches.slice(0, MAX_RESULTS).map(icon => iconChoice(icon, style)));
-  $("results-heading").textContent = browsing ? "All icons" : `Results (${matches.length})`;
-  $("results-note").textContent =
-    matches.length === 0 ? "No icons match. Try a simpler word, like box, tool or tree." :
-    matches.length > MAX_RESULTS ? `Showing ${MAX_RESULTS} of ${matches.length}. Search or pick a category to narrow it down.` :
-    "";
+  if (browsing) {
+    const recent = recentIcons();
+    if (recent.length) sections.push(iconSection("Recently used", recent));
 
-  const recent = browsing ? recentIcons() : [];
-  $("recent-section").hidden = recent.length === 0;
-  $("recent-grid").replaceChildren(...recent.map(({ icon, style }) => iconChoice(icon, style)));
+    const groups = Map.groupBy(allIcons(), icon => icon.category);
+    for (const [category, icons] of groups) {
+      sections.push(iconSection(category, icons));
+    }
+  } else {
+    const matches = currentMatches();
+    if (matches.length) sections.push(iconSection(`Results (${matches.length})`, matches));
+  }
+
+  $("icon-results").replaceChildren(...sections);
+  $("results-note").textContent = sections.length ? "" :
+    $("icon-category").value === MY_ICONS && !state.myIcons.length
+      ? "You haven't uploaded any icons yet. Use Upload icon below to add one."
+      : "No icons match. Try another word, or upload your own icon.";
 }
 
-function iconChoice(icon, style) {
-  const selected = state.icon?.icon === icon && state.icon.style === style;
+function iconSection(heading, icons) {
+  const section = document.createElement("section");
+  const title = document.createElement("h3");
+  title.className = "picker-heading";
+  title.textContent = heading;
+  const grid = document.createElement("div");
+  grid.className = "icon-grid";
+  grid.append(...icons.map(iconChoice));
+  section.append(title, grid);
+  return section;
+}
+
+function iconChoice(icon) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "icon-choice";
-  button.title = iconLabel(icon);
-  button.setAttribute("aria-pressed", selected);
-
-  const art = document.createElement("span");
-  art.className = "icon-art";
-  art.setAttribute("aria-hidden", "true");
-  art.innerHTML = iconSvg(icon, style);
-  const name = document.createElement("span");
-  name.className = "icon-name";
-  name.textContent = iconLabel(icon);
-
-  button.append(art, name);
-  button.addEventListener("click", () => chooseIcon({ icon, style }));
+  button.title = icon.label;
+  button.setAttribute("aria-pressed", state.icon?.id === icon.id);
+  button.innerHTML = `
+    <span class="icon-art" aria-hidden="true">${iconArt(icon)}</span>
+    <span class="icon-name"></span>`;
+  button.querySelector(".icon-name").textContent = icon.label;
+  button.addEventListener("click", () => chooseIcon(icon));
   return button;
 }
 
-function chooseIcon(choice) {
-  state.icon = choice;
-  if (choice) rememberIcon(choice);
+function chooseIcon(icon) {
+  state.icon = icon;
+  if (icon) rememberIcon(icon);
 
   $("icon-picker").close();
   updateIconButton();
@@ -683,52 +704,141 @@ function chooseIcon(choice) {
 function updateIconButton() {
   const button = $("icon-button");
   button.classList.toggle("has-icon", !!state.icon);
-  $("icon-button-art").innerHTML = state.icon ? iconSvg(state.icon.icon, state.icon.style) : "";
+  $("icon-button-art").innerHTML = state.icon ? iconArt(state.icon) : "";
   $("icon-button-text").textContent = state.icon ? "" : "Icon";
-  button.setAttribute("aria-label", state.icon ? `Icon: ${iconLabel(state.icon.icon)}. Change icon` : "Add an icon");
+  button.setAttribute("aria-label", state.icon ? `Icon: ${state.icon.label}. Change icon` : "Add an icon");
 }
 
 // Recently used icons are remembered per browser.
 function recentIcons() {
   try {
-    const saved = JSON.parse(localStorage.getItem("toteLabels.recentIcons")) ?? [];
-    return saved
-      .map(({ name, style }) => ({ icon: state.icons.find(icon => icon.name === name), style }))
-      .filter(choice => choice.icon);
+    const ids = JSON.parse(localStorage.getItem("toteLabels.recentIcons")) ?? [];
+    const icons = allIcons();
+    return ids.map(id => icons.find(icon => icon.id === id)).filter(Boolean);
   } catch {
     return [];
   }
 }
 
-function rememberIcon({ icon, style }) {
+function rememberIcon(icon) {
   try {
-    const saved = (JSON.parse(localStorage.getItem("toteLabels.recentIcons")) ?? [])
-      .filter(item => !(item.name === icon.name && item.style === style));
-    saved.unshift({ name: icon.name, style });
-    localStorage.setItem("toteLabels.recentIcons", JSON.stringify(saved.slice(0, MAX_RECENT)));
+    const ids = (JSON.parse(localStorage.getItem("toteLabels.recentIcons")) ?? []).filter(id => id !== icon.id);
+    ids.unshift(icon.id);
+    localStorage.setItem("toteLabels.recentIcons", JSON.stringify(ids.slice(0, MAX_RECENT)));
   } catch { }
 }
 
-// Draws the chosen icon at its printed size, in black on white, for the printer. The server
-// turns it with the text on a sideways label and shrinks it with the rest when the offset needs room.
-async function renderIconPng() {
-  const box = state.layout.icon;
-  const width = Math.round(box.width * state.dpi / 203);
-  const height = Math.round(box.height * state.dpi / 203);
-
-  const svg = iconSvg(state.icon.icon, state.icon.style).replaceAll("currentColor", "#000");
+// Draws an image file onto a canvas of the given size, scaled to fit and centered.
+async function drawImage(source, width, height, background) {
   const image = new Image();
-  image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  image.src = source;
   await image.decode();
+
+  // SVG files without a size report 0 × 0, so fall back to a square.
+  const naturalWidth = image.naturalWidth || 512;
+  const naturalHeight = image.naturalHeight || 512;
+  const scale = Math.min(width / naturalWidth, height / naturalHeight);
+  const drawWidth = naturalWidth * scale;
+  const drawHeight = naturalHeight * scale;
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
-  context.fillStyle = "#fff";
-  context.fillRect(0, 0, width, height);
-  context.drawImage(image, 0, 0, width, height);
+  if (background) {
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+  }
+  context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+  return canvas;
+}
+
+// Draws the chosen icon at its exact printed size, in black on white, for the printer.
+async function renderIconPng() {
+  const box = state.layout.icon;
+  const width = Math.round(box.width * state.dpi / 203);
+  const height = Math.round(box.height * state.dpi / 203);
+
+  const source = state.icon.src ??
+    "data:image/svg+xml;charset=utf-8," + encodeURIComponent(iconArt(state.icon).replaceAll("currentColor", "#000"));
+
+  const canvas = await drawImage(source, width, height, "#fff");
   return canvas.toDataURL("image/png");
+}
+
+// ---------- Your own icons ----------
+
+// Uploads an image as one of your icons and returns it, or shows why it failed and returns null.
+async function uploadIcon(file, note) {
+  showStatus(note, "Uploading…");
+
+  // Convert to a 256 px PNG here, so the app accepts SVGs too and stores small files.
+  const fileUrl = URL.createObjectURL(file);
+  let png;
+  try {
+    const canvas = await drawImage(fileUrl, 256, 256, null);
+    png = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  } catch {
+    showStatus(note, "That file couldn't be read as an image. Try a PNG, JPG or SVG.", "error");
+    return null;
+  } finally {
+    URL.revokeObjectURL(fileUrl);
+  }
+
+  try {
+    const requestedName = file.name.replace(/\.[^.]+$/, "").replaceAll(/[-_]+/g, " ");
+    const { name } = await api(`/api/icons?name=${encodeURIComponent(requestedName)}`, { method: "PUT", body: png });
+    await loadMyIcons();
+    showStatus(note, `Added ${name}.`, "ok");
+    return state.myIcons.find(icon => icon.label === name);
+  } catch (error) {
+    showStatus(note, error.message, "error");
+    return null;
+  }
+}
+
+async function showMyIconsInSettings() {
+  try {
+    await loadMyIcons();
+  } catch (error) {
+    showStatus($("my-icons-status"), error.message, "error");
+    return;
+  }
+
+  const list = $("my-icons-list");
+  list.replaceChildren(...state.myIcons.map(icon => {
+    const row = document.createElement("li");
+    row.innerHTML = `<span class="icon-art" aria-hidden="true">${iconArt(icon)}</span><span class="my-icon-name"></span>`;
+    row.querySelector(".my-icon-name").textContent = icon.label;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "button-quiet";
+    remove.textContent = "Remove";
+    remove.setAttribute("aria-label", `Remove ${icon.label}`);
+    remove.addEventListener("click", () => removeMyIcon(icon));
+    row.append(remove);
+    return row;
+  }));
+
+  $("no-my-icons").hidden = state.myIcons.length > 0;
+}
+
+async function removeMyIcon(icon) {
+  try {
+    await api(`/api/icons/${encodeURIComponent(icon.label)}`, { method: "DELETE" });
+    showStatus($("my-icons-status"), `Removed ${icon.label}.`, "ok");
+
+    if (state.icon?.id === icon.id) {
+      state.icon = null;
+      updateIconButton();
+      arrangePreview();
+      updatePreview();
+    }
+    showMyIconsInSettings();
+  } catch (error) {
+    showStatus($("my-icons-status"), error.message, "error");
+  }
 }
 
 // ---------- Wiring ----------
@@ -764,13 +874,24 @@ $("close-picker").addEventListener("click", () => $("icon-picker").close());
 $("remove-icon").addEventListener("click", () => chooseIcon(null));
 $("icon-search").addEventListener("input", showIcons);
 $("icon-category").addEventListener("change", showIcons);
-$("icon-solid").addEventListener("change", showIcons);
+// Uploading from the picker also chooses the new icon; uploading from Settings just adds it.
+$("icon-upload").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  const icon = file && await uploadIcon(file, $("results-note"));
+  if (icon) chooseIcon(icon);
+});
+$("settings-icon-upload").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (file && await uploadIcon(file, $("my-icons-status"))) showMyIconsInSettings();
+});
 
 // Enter in the search box picks the first result.
 $("icon-search").addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
-    $("icon-grid").querySelector("button")?.click();
+    $("icon-results").querySelector(".icon-choice")?.click();
   }
 });
 

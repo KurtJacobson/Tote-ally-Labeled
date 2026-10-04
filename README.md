@@ -18,8 +18,11 @@ roll.
 ## Icons
 
 The button left of the title opens an icon picker. The chosen icon prints beside the title on every size.
-The icons are [Tabler Icons](https://tabler.io/icons) (MIT license, `wwwroot/icons-LICENSE.txt`), stored
-in `wwwroot/icons.json`. The browser draws the chosen icon at its printed size and sends it with the label.
+The built-in icons, in `wwwroot/icons.json`, come from [Material Design Icons](https://pictogrammers.com)
+(Apache 2.0) and [game-icons.net](https://game-icons.net) (CC BY 3.0); see `wwwroot/icons-CREDITS.txt`.
+Your own icons can be uploaded from the picker or Settings; they are stored as PNGs in
+`%LOCALAPPDATA%\ToteLabels\icons`. The browser draws the chosen icon at its printed size and sends it with
+the label.
 
 ## Build and run
 
