@@ -1,65 +1,51 @@
 # Tote-ally Labeled
 
-Prints storage tote labels on a Zebra network printer (ZPL over TCP port 9100). It is a Windows desktop
-app: a WebView2 window showing a page served by the app's own web server on port 5050, which phones and
-other computers on the network can also open while the app is running.
+Print storage tote labels on a Zebra label printer. Type a title and a list of what's inside, choose an icon,
+and print. Works with any label size, including round labels, and from a phone on the same network.
 
-Settings, label sizes and the logo are stored per user in `%LOCALAPPDATA%\ToteLabels`, so they carry
-over when a new version is installed.
+![Main window](docs/screenshots/main.png)
 
-## Label sizes
+| Label sizes | Icon picker | On a phone |
+|---|---|---|
+| ![Label sizes](docs/screenshots/label-sizes.png) | ![Icon picker](docs/screenshots/icon-picker.png) | ![On a phone](docs/screenshots/phone.png) |
 
-**Add or change label sizes** (under the size picker) edits the list of sizes. Each size is a rectangle
-or a round label, entered in inches or mm, with options for the logo, one or two title lines, and left or
-centred contents. The layout is worked out from the size (`LabelLayouts.cs`), and the editor's preview
-shows exactly what will print. A size wider than the printer's 4.09 in head prints sideways on a narrower
-roll.
+## Install
 
-## Icons
+1. Download the installer from the **[latest release](https://github.com/KurtJacobson/Tote-ally-Labeled/releases/latest)**
+   (`Tote-ally-Labeled-Setup-<version>.exe`).
+2. Run it. Windows SmartScreen warns on the first run because the installer isn't code-signed; choose
+   **More info**, then **Run anyway**.
+3. Leave **Allow phones and other computers on this network** ticked if you want to print from a phone.
+   It opens TCP port 5050 in Windows Firewall for your local network only.
+4. Open Tote-ally Labeled, then **Settings**:
+   - **Printer IP address**: print a network configuration label from the printer's menu to find it, and
+     use **Test** to check the connection.
+   - **Print resolution**: 203 or 300 dpi, from the sticker under the printer.
+   - **Calibrate printer** after loading a new roll.
 
-The button left of the title opens an icon picker. The chosen icon prints beside the title on every size.
-The built-in icons, in `wwwroot/icons.json`, come from [Material Design Icons](https://pictogrammers.com)
-(Apache 2.0) and [game-icons.net](https://game-icons.net) (CC BY 3.0); see `wwwroot/icons-CREDITS.txt`.
-Your own icons can be uploaded from the picker or Settings; they are stored as PNGs in
-`%LOCALAPPDATA%\ToteLabels\icons`. The browser draws the chosen icon at its printed size and sends it with
-the label.
+To print from a phone, open `http://<this PC's IP address>:5050` in its browser while the app is open.
 
-## Build and run
+Requires 64-bit Windows 10 or 11. Setup downloads the Microsoft Edge WebView2 Runtime if the PC doesn't have it.
+Installing a new version keeps your settings, label sizes, logo and icons.
 
-```
-dotnet run
-```
+## Printer compatibility
 
-## Build the installer
+Tote-ally Labeled sends ZPL (Zebra Programming Language) to the printer over the network on TCP port 9100.
 
-Needs the .NET 8 SDK and [Inno Setup 6](https://jrsoftware.org/isdl.php).
-
-```
-powershell -ExecutionPolicy Bypass -File build\make-installer.ps1
-```
-
-This publishes the app self-contained into `dist\` and writes `installer\Output\Tote-ally-Labeled-Setup-<version>.exe`.
-
-## Versions
-
-The version comes from git, using the same rule as Vordr (`build\release-version.ps1`):
-
-| Where HEAD is | Version |
+| Printer | Works? |
 |---|---|
-| On tag `v0.1.0` | `0.1.0` |
-| 3 commits past `v0.1.0` | `0.1.0.3` |
-| 3 commits past `v0.2.0-dev.1` | `0.2.0-dev.1.3` |
-| No tags yet | `0.1.0.<commit count>` |
+| Zebra network printers that speak ZPL: ZD, GK/GX and ZT series | Yes. Developed on a ZD621 at 300 dpi. |
+| Other brands with ZPL emulation (some TSC, Godex, Honeywell, SATO) | Usually. Fonts, line wrapping and centring can differ from the preview, and Calibrate may do nothing. |
+| Printers that only speak TSPL, EPL, DPL, ESC/POS or CPCL | No |
+| Brother QL, DYMO and other driver-only printers | No |
+| USB-only printers | No. The printer must be on the network. |
 
-The version is shown at the bottom of Settings.
+- Resolution: 203 or 300 dpi.
+- Labels up to 4.09 in (103.9 mm) wide, the print width of the ZD621. Wider labels, up to 12 in, print sideways
+  on a narrower roll.
 
-## Releases
+## Credits
 
-GitHub Actions (`.github/workflows/release.yml`) builds the installer on every push and pull request and
-keeps it as a workflow artifact for a week. Pushing a tag publishes a GitHub release with the installer
-attached; a tag containing `-` is marked as a pre-release.
-
-```
-git tag v0.1.0
-git push origin v0.1.0
-```
+Built-in icons from [Material Design Icons](https://pictogrammers.com) (Apache License 2.0) and
+[game-icons.net](https://game-icons.net) by Lorc, Delapouite and contributors (CC BY 3.0). See
+[`wwwroot/icons-CREDITS.txt`](wwwroot/icons-CREDITS.txt).
