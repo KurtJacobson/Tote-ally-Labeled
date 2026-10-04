@@ -577,7 +577,7 @@ const MAX_RECENT = 16;
 
 function iconArt(icon) {
   return icon.src
-    ? `<img src="${icon.src}" alt="">`
+    ? `<img src="${icon.inkSrc ?? icon.src}" alt="">`
     : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${icon.viewBox}" fill="currentColor">${icon.body}</svg>`;
 }
 
@@ -601,13 +601,44 @@ async function loadIcons() {
 async function loadMyIcons() {
   const names = (await api("/api/icons")) ?? [];
   const version = Date.now();  // new URLs so a replaced icon isn't shown from the browser's cache
-  state.myIcons = names.map(name => addSearchWords({
-    id: `my:${name}`,
-    label: name,
-    category: MY_ICONS,
-    tags: "",
-    src: `/api/icons/${encodeURIComponent(name)}?v=${version}`
+  state.myIcons = await Promise.all(names.map(async name => {
+    const src = `/api/icons/${encodeURIComponent(name)}?v=${version}`;
+    return addSearchWords({
+      id: `my:${name}`,
+      label: name,
+      category: MY_ICONS,
+      tags: "",
+      src,
+      inkSrc: await inkImage(src).catch(() => src)  // falls back to the plain image if it can't be read
+    });
   }));
+}
+
+// The shape an uploaded icon prints as, for showing it on screen: black wherever the printer will put ink,
+// decided at full size the same way the printer's conversion does (ZplBuilder.IsDark: not see-through,
+// and darker than mid-grey), and clear everywhere else. The browser then scales that clean shape down
+// smoothly, where filtering the scaled-down picture left fuzzy, ragged edges.
+async function inkImage(src) {
+  const image = new Image();
+  image.src = src;
+  await image.decode();
+
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0);
+
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = pixels.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const lightness = (Math.max(data[i], data[i + 1], data[i + 2]) + Math.min(data[i], data[i + 1], data[i + 2])) / 510;
+    const ink = data[i + 3] > 128 && lightness < 0.5;
+    data[i] = data[i + 1] = data[i + 2] = 0;
+    data[i + 3] = ink ? 255 : 0;
+  }
+  context.putImageData(pixels, 0, 0);
+  return canvas.toDataURL("image/png");
 }
 
 const allIcons = () => [...state.icons, ...state.myIcons];

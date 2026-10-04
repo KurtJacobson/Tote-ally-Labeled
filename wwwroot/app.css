@@ -593,7 +593,8 @@ dialog.picker[open] {
 
 .picker-credit a { color: inherit; }
 
-/* Uploaded icons are shown as the printer will print them: black on a white label. */
+/* Uploaded icons are shown as the printer will print them (see inkImage in app.js), black on white,
+   so they also show up against the dark theme in the picker and Settings. */
 .icon-art img, .label-icon img {
   display: block;
   width: 100%;
@@ -601,7 +602,6 @@ dialog.picker[open] {
   object-fit: contain;
   background: #ffffff;
   border-radius: 3px;
-  filter: grayscale(1) contrast(8);
 }
 
 /* "My icons" list in Settings */
