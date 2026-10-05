@@ -590,8 +590,18 @@ async function uploadLogo(event) {
   if (!file) return;
 
   showStatus($("logo-status"), "Uploading…");
+  let body = file;
+  if (file.type === "image/svg+xml" || /\.svg$/i.test(file.name)) {
+    try {
+      body = await svgLogoToPng(file);
+    } catch {
+      showStatus($("logo-status"), "That SVG couldn't be drawn. Try a PNG or JPG.", "error");
+      event.target.value = "";
+      return;
+    }
+  }
   try {
-    await api("/api/logo", { method: "PUT", body: file });
+    await api("/api/logo", { method: "PUT", body });
     showStatus($("logo-status"), "Logo updated.", "ok");
     loadLogo();
     await refreshLayouts();
@@ -599,6 +609,37 @@ async function uploadLogo(event) {
     showStatus($("logo-status"), error.message, "error");
   }
   event.target.value = "";
+}
+
+// The app can't read SVGs, so the browser draws one as a PNG first, big enough to print sharply at the logo's
+// largest size. Its proportions come from its width and height, or else its viewBox, since an SVG without a
+// size doesn't report one when loaded as an image.
+async function svgLogoToPng(file) {
+  let text = await file.text();
+  if (!/<svg[^>]*\sxmlns=/i.test(text)) text = text.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+
+  const svg = new DOMParser().parseFromString(text, "image/svg+xml").documentElement;
+  const viewBox = (svg.getAttribute("viewBox") ?? "").trim().split(/[\s,]+/).map(Number);
+  let width = parseFloat(svg.getAttribute("width"));
+  let height = parseFloat(svg.getAttribute("height"));
+  if (!(width > 0 && height > 0)) [width, height] = viewBox.length === 4 && viewBox[2] > 0 && viewBox[3] > 0
+    ? [viewBox[2], viewBox[3]] : [1, 1];
+
+  // Given its pixel size outright, so the image loads at exactly the canvas size.
+  const scale = 1600 / Math.max(width, height);
+  width = Math.round(width * scale);
+  height = Math.round(height * scale);
+  if (viewBox.length !== 4) svg.setAttribute("viewBox", `0 0 ${parseFloat(svg.getAttribute("width")) || width} ${parseFloat(svg.getAttribute("height")) || height}`);
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+
+  const source = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }));
+  try {
+    const canvas = await drawImage(source, width, height, null);
+    return await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  } finally {
+    URL.revokeObjectURL(source);
+  }
 }
 
 async function removeLogo() {

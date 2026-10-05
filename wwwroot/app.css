@@ -412,7 +412,9 @@ dialog {
   width: min(520px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   padding: 0;
-  overflow: hidden;
+  /* clip, not hidden: a hidden box can still be scrolled by the browser, as when focus returns to a hidden file
+     input after its file picker closes, which pushed the header off the top. */
+  overflow: clip;
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--line);
@@ -454,6 +456,7 @@ dialog::backdrop { background: rgba(15, 17, 19, 0.55); }
 }
 
 .dialog-body {
+  position: relative;  /* holds the hidden file inputs, so they scroll with the settings rather than sit outside */
   padding: 0 24px;
   overflow-y: auto;
 }
