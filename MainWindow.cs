@@ -17,7 +17,11 @@ public class MainWindow : Form
         browserDataFolder = Path.Combine(dataFolder, "WebView2");
 
         Text = "Tote-ally Labeled";
-        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);  // tote.ico, built into the exe
+        // tote.ico at the size this screen's scaling needs. The exe's own icon gives only 32 px, which the taskbar
+        // stretches and blurs on a scaled display.
+        int iconSize = LogicalToDeviceUnits(32);
+        using (var iconStream = typeof(MainWindow).Assembly.GetManifestResourceStream("tote.ico")!)
+            Icon = new Icon(iconStream, iconSize, iconSize);
         ClientSize = new Size(1100, 760);
         MinimumSize = new Size(480, 480);
         StartPosition = FormStartPosition.CenterScreen;

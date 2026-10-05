@@ -22,6 +22,11 @@
     <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The window's own copy of the icon, with every size in it, so the taskbar and title bar don't stretch a small one. -->
+  <ItemGroup>
+    <EmbeddedResource Include="tote.ico" LogicalName="tote.ico" />
+  </ItemGroup>
+
   <!-- The WebView2 package always adds its WPF control, which clashes with WinForms over WindowsBase. Only the WinForms one is used. -->
   <Target Name="DropWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">
     <ItemGroup>
