@@ -11,10 +11,12 @@
 #define AppName "Tote-ally Labeled"
 #define AppExe "ToteLabels.exe"
 ; The app's own web server port; other devices on the network reach it here.
-#define Port "5050"
-#define FirewallRule "Tote-ally Labeled (TCP 5050)"
-; The rule's name before the app was renamed, which may also have been added by hand. Replaced, not kept beside it.
-#define OldFirewallRule "Tote Labels (TCP 5050)"
+#define Port "8683"
+#define FirewallRule "Tote-ally Labeled (TCP 8683)"
+; Rules for the old port 5050, which other software also uses, under the app's current and former names.
+; Removed on install so an upgrade doesn't leave that port open.
+#define OldFirewallRule "Tote-ally Labeled (TCP 5050)"
+#define OlderFirewallRule "Tote Labels (TCP 5050)"
 
 [Setup]
 AppId={{0F9F01C9-5559-4451-9F1F-945E1AACBB9B}
@@ -157,8 +159,20 @@ begin
               'Microsoft Edge WebView2 Runtime';
 end;
 
+procedure RemoveOldFirewallRules;
+var
+  rc: Integer;
+begin
+  Exec(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name="{#OldFirewallRule}"', '', SW_HIDE, ewWaitUntilTerminated, rc);
+  Exec(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name="{#OlderFirewallRule}"', '', SW_HIDE, ewWaitUntilTerminated, rc);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if (CurStep = ssPostInstall) and WizardIsTaskSelected('firewall') then
-    AddFirewallRule;
+  if CurStep = ssPostInstall then
+  begin
+    RemoveOldFirewallRules;
+    if WizardIsTaskSelected('firewall') then
+      AddFirewallRule;
+  end;
 end;

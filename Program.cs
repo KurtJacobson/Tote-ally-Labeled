@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using ToteLabels;
 
-const int Port = 5050;
+const int Port = 8683;
 
 // Only one copy can run, since both would need the same port.
 using var singleInstance = new Mutex(true, "ToteLabels", out bool firstInstance);

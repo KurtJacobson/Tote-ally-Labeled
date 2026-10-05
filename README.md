@@ -16,7 +16,7 @@ and print. Works with any label size, including round labels, and from a phone o
 2. Run it. Windows SmartScreen warns on the first run because the installer isn't code-signed; choose
    **More info**, then **Run anyway**.
 3. Leave **Allow phones and other computers on this network** ticked if you want to print from a phone.
-   It opens TCP port 5050 in Windows Firewall for your local network only.
+   It opens TCP port 8683 in Windows Firewall for your local network only.
 4. Open Tote-ally Labeled, then **Settings**:
    - **Printer connection**: **Network**, with the printer's IP address (print a network configuration label
      from the printer's menu to find it), or **USB**, choosing the printer as installed in Windows. Use **Test**
@@ -24,7 +24,7 @@ and print. Works with any label size, including round labels, and from a phone o
    - **Print resolution**: 203 or 300 dpi, from the sticker under the printer.
    - **Calibrate printer** after loading a new roll.
 
-To print from a phone, open `http://<this PC's IP address>:5050` in its browser while the app is open.
+To print from a phone, open `http://<this PC's IP address>:8683` in its browser while the app is open.
 
 Requires 64-bit Windows 10 or 11. Setup downloads the Microsoft Edge WebView2 Runtime if the PC doesn't have it.
 Installing a new version keeps your settings, label sizes, logo and icons.
