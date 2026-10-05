@@ -90,7 +90,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* A tiny tote: graphite bin with a yellow lid. */
 .brand-mark {
   width: 30px;
-  height: 25px;
+  height: 20px;
   flex: none;
 }
 
